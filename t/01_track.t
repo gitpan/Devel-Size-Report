@@ -6,13 +6,13 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 25;
+  plan tests => 27;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
   }
   
-use Devel::Size::Report qw/track_size entries_per_element/;
+use Devel::Size::Report qw/track_size entries_per_element track_sizes/;
 use Devel::Size qw/total_size/;
 
 my $x = "A string";
@@ -56,7 +56,7 @@ is (scalar @size, entries_per_element() * ( 3 + 1), '4 (3 scalars + 1 array) ele
 # check that nested arrays work
 @size = track_size ( [ $x,$y,$z, [ $x, $y, $z] ] );
 
-is (scalar @size, entries_per_element() * ( 6 + 2), '8 (6 scalars + 2 arrays) elements');
+is (scalar @size, entries_per_element() * (6 + 2), '8 (6 scalars + 2 arrays) elements');
 
 # check that nested arrays work
 @size = track_size ( { 1 => $x, 2 => $y, 3 => $z, 4 => { 1 => $x, 2 => $y, 3 => $z } } );
@@ -83,4 +83,26 @@ $self = { value => $x }; bless $self, 'Bar';
 @size = track_size ( $self );
 
 is (scalar @size, entries_per_element() * (1 + 1), '2 (1 scalar + 1 hash) elements');
+
+#############################################################################
+# cycles
+
+$a = { foo => 23, bar => 45, baz => { umpf => 1234 } };
+$a->{baz}->{parent} = $a;
+
+@size = track_size ( $a );
+
+#  Hash(0x82add08) 405 bytes (overhead: 183 bytes, 45.19%)
+#    'bar' => Scalar(0x82ade10) 16 bytes
+#    'baz' => Hash(0x82a0560) 190 bytes (overhead: 158 bytes, 83.16%)
+#      'umpf' => Scalar(0x82add38) 16 bytes
+#      'parent' => Circular ref(0x82add08) 16 bytes
+
+is (scalar @size, entries_per_element() * 6, '6 (4 scalar + 2 hash) elements');
+
+Devel::Size::Report::hide_tracks();
+
+my $sizes = track_sizes ( $a );
+
+is (scalar @$sizes, entries_per_element() * 6, '6 (4 scalar + 2 hash) elements');
 

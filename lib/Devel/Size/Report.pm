@@ -1,12 +1,19 @@
 package Devel::Size::Report;
 
+$VERSION = '0.09';
+
 use Devel::Size qw(size total_size);
 use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;
+use Time::HiRes qw/time/;
+use Array::RefElem qw/hv_store av_push/;
+use Devel::Peek qw/SvREFCNT/;
 
 require Exporter;
 @ISA = qw/Exporter/;
 @EXPORT_OK = qw/
-  report_size track_size element_type type entries_per_element
+  report_size track_size element_type type entries_per_element track_sizes
+  hide_tracks
+
   S_SCALAR
   S_HASH
   S_ARRAY
@@ -29,11 +36,11 @@ require Exporter;
   /;
 
 use strict;
-use vars qw/$VERSION $SIZE_OF_REF/;
-use Time::HiRes qw/time/;
-use Array::RefElem qw/hv_store/;
-
-$VERSION = '0.08';
+  
+my $SIZE_OF_REF;
+# If somebody used hv_store, we need also to enter hash key addresses into
+# SEEN. Default is off, because this wastes memory.
+my $TRACK_DOUBLES = 0;
 
 BEGIN
   {
@@ -47,10 +54,14 @@ BEGIN
   $SIZE_OF_REF = total_size(\\0) - total_size(\0);
   }
 
-# for cycles in memory
+# for cycles in memory:
 my %SEEN;
-# scalar that can be entered into %SEEN many times 
+# _track_size() stores it's result here:
+my @sizes;
+# scalar that can be entered into %SEEN many times:
 my $UNDEF = undef;
+# scalar that can be entered into @sizes many times:
+my $ZERO = 0;
 
 # the different types of elements
 sub S_UNKNOWN () { 0; }
@@ -176,16 +187,18 @@ sub report_size
     require Carp;
     Carp::confess ("report_size() needs a hash ref for options");
     }  
+  
+  my $options = _default_options($opt);
+
+  $TRACK_DOUBLES = $options->{doubles} || 0;
 
   # DONT do "track_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
 
   # get the size for all elements so that we can generate a report on it
-  my @size = track_size($_[0],$opt);
+  track_sizes($_[0],$opt);
 
   my $text = '';
- 
-  my $options = _default_options($opt);
  
   my $indend = $options->{indend};
   my $names = $options->{names};
@@ -217,21 +230,22 @@ sub report_size
   $text = "$left$head '$ref'$r:\n" if $head ne '';
 
   my $e = entries_per_element();
-
-  for (my $i = 0; $i < @size; $i += $e)
+  
+  for (my $i = 0; $i < @sizes; $i += $e)
     {
     # inline element_type for speed:
-    # my $type = element_type( ($size[$i+1] & 0xFF),$names);
-    my $type = $names->{ ($size[$i+1] & 0xFF) } || 'Unknown';
+    # my $type = element_type( ($sizes[$i+1] & 0xFF),$names);
+    my $type = $names->{ ($sizes[$i+1] & 0xFF) } || 'Unknown';
 
     if ($show_summary)
       {
-      my $t = $size[$i+1] & 0xFF; $t = $TYPE_CLASS->{$t};
-      $t = $size[$i+6] if $size[$i+6];
+      my $t = $sizes[$i+1] & 0xFF; $t = $TYPE_CLASS->{$t};
+      $t = $sizes[$i+6] if $sizes[$i+6];
+      print "# $t $sizes[$i+1]\n" if $t eq '_set';
       if ($t) 
         {
         $count->{$t} ++;
-        $sum->{$t} += $size[$i+2];
+        $sum->{$t} += $sizes[$i+2];
         }
       # else { should not happen }
       }
@@ -241,37 +255,37 @@ sub report_size
       # include flags
       for my $flag (SF_WEAK, SF_RO, SF_DUAL)
         {
-        if ( ($size[$i+1] & $flag) != 0)
+        if ( ($sizes[$i+1] & $flag) != 0)
           {
           $type = element_type($flag, $names) . ' ' . $type;
           }
         }
-      if ( ($size[$i+1] & SF_REF) != 0)
+      if ( ($sizes[$i+1] & SF_REF) != 0)
         {
         $type .= " " . element_type(SF_REF, $names);
         }
 
       # add addr of element if wanted
-      $type .= "(" . $size[$i+5] . ")" if $addr && $size[$i+5];
+      $type .= "(" . $sizes[$i+5] . ")" if $addr && $sizes[$i+5];
 
       # add class of element if wanted
-      $type .= " (" . $size[$i+6] . ")" if $class && $size[$i+6];
+      $type .= " (" . $sizes[$i+6] . ")" if $class && $sizes[$i+6];
 
       my $str = $type;
-      if ( ($size[$i+1] & SF_KEY) != 0)
+      if ( ($sizes[$i+1] & SF_KEY) != 0)
         {
-        $str = "'$size[$i+4]' => " . $type;
+        $str = "'$sizes[$i+4]' => " . $type;
         }
-      $str .= " $size[$i+2]$bytes";
-      if ($size[$i+3] != 0)
+      $str .= " $sizes[$i+2]$bytes";
+      if ($sizes[$i+3] != 0)
         {
         my $overhead = 
-	  sprintf($foverhead, $size[$i+3], $bytes, 
-	   100 * $size[$i+3] / $size[$i+2]); 
-          $overhead = ' (overhead: unknown)' if $size[$i+3] < 0;
+	  sprintf($foverhead, $sizes[$i+3], $bytes, 
+	   100 * $sizes[$i+3] / $sizes[$i+2]); 
+          $overhead = ' (overhead: unknown)' if $sizes[$i+3] < 0;
         $str .= $overhead;
         }
-      $text .= $inner . ($indend x $size[$i]) . "$str\n";
+      $text .= $inner . ($indend x $sizes[$i]) . "$str\n";
       }
     } 
 
@@ -286,10 +300,17 @@ sub report_size
       $text .= $indend . _right_align($sum->{$k},10) . " bytes in " . _right_align($count->{$k},6) . " $k\n";
       }
     }
-  my $elements = scalar @size / $e;
-  $text .= $left . "Total: $size[2]$bytes in $elements elements\n" if $total;
+  my $elements = scalar @sizes / $e;
+  $text .= $left . "Total: $sizes[2]$bytes in $elements elements\n" if $total;
+
+  hide_tracks();		# release memory
 
   $text;
+  }
+
+sub hide_tracks
+  {
+  @sizes = ();
   }
 
 sub _right_align
@@ -303,37 +324,50 @@ sub _right_align
 sub element_type
   {
   my ($type,$TYPE) = @_;
-
   $TYPE->{$type} || 'Unknown';
   }
 
 sub type
   {
   # map a typename to a type number
-  my ($type) = @_;
+  $NAME_MAP->{$_[0]} || S_UNKNOWN;
+  }
 
-  $NAME_MAP->{$type} || S_UNKNOWN;
+sub track_sizes
+  {
+  my $opt = $_[1];
+
+  my $time = time();		# record start time
+  undef %SEEN;			# reset cycle memory
+  @sizes = ();			# reset results array & stores result:
+  _track_size($_[0]); 		# use $_[0] directly to avoid slot-reusing
+
+  if ($opt->{debug})
+    {
+    $time = time() - $time; 
+    print STDERR " DEBUG: Devel::Size::Report v$Devel::Size::Report::VERSION\n";
+    my $size_seen = total_size(\%SEEN);
+    my $size_sizes = total_size(\@sizes);
+
+    print STDERR " DEBUG: \%SEEN : ", _right_align($size_seen,12), " bytes, ", scalar keys %SEEN, " elements\n";
+    print STDERR " DEBUG: \@sizes: ", _right_align($size_sizes,12), " bytes, ", scalar @sizes, " elements\n";
+    print STDERR " DEBUG: Total : ", _right_align($size_sizes + $size_seen,12), " bytes, ", scalar @sizes + scalar keys %SEEN, " elements\n";
+    print STDERR " DEBUG: took ", sprintf("%0.3f",$time), " seconds to gather data for report.\n\n";
+    }
+  undef %SEEN;		# save memory, throw away
+
+  \@sizes;
   }
 
 sub track_size
   {
   my $opt = $_[1];
 
-  my $time = time();
-  undef %SEEN;		# reset cycle memory
-  # use $_[0] directly to avoid slot-reusing
-  my @sizes = _track_size($_[0]);
+  # fill the results into @sizes
+  track_sizes($_[0], $_[1]);
 
-  if ($opt->{debug})
-    {
-    $time = time() - $time; 
-    print STDERR " DEBUG: Devel::Size::Report v$VERSION\n";
-    print STDERR " DEBUG: \%SEEN : ", _right_align(total_size(\%SEEN),12), " bytes, ", scalar keys %SEEN, " elements\n";
-    print STDERR " DEBUG: \@sizes: ", _right_align(total_size(\@sizes),12), " bytes, ", scalar @sizes, " elements\n";
-    print STDERR " DEBUG: took ", sprintf("%0.2f",$time), " seconds to gather data for report.\n";
-    }
-  undef %SEEN;		# save memory, throw away
-  @sizes;
+  # return a copy (backwards compatibility)
+  @sizes;		# return results
   }
 
 sub _addr
@@ -387,71 +421,109 @@ sub _track_size
     # already seen this part of the world, so return
     if (ref($ref))
       {
-      return ($level, S_CYCLE, $SIZE_OF_REF, 0, undef, $adr, $blessed);
+      push @sizes, $level, S_CYCLE, $SIZE_OF_REF, 0, undef, $adr, $blessed;
+      return; 
       }
     # a scalar seen twice
-    return ($level, S_DOUBLE, 0, 0, undef, $adr, '');
+    push @sizes, $level, S_DOUBLE, 0, 0;
+    av_push (@sizes, $UNDEF);
+    push @sizes, $adr;
+    av_push (@sizes, $UNDEF);
+    return;
     }
 
-  # put in the address of $ref in the %SEEN hash
-  #$SEEN{$adr} = undef;
-  hv_store (%SEEN, $adr , $UNDEF);
+  # put in the address of $ref in the %SEEN hash (things with a refcnt of 1
+  # cannot be part of a cycle, since only one thing is pointing at them)
+  hv_store (%SEEN, $adr , $UNDEF) if ref($_[0]) || SvREFCNT($_[0]) > 1;
 
   # not a reference, but a plain scalar?
   if (!ref($ref))
     {
     my $type = S_SCALAR;
     $type = S_VSTRING if isvstring($_[0]);
-    return ($level, _flags($_[0]) + $type, $total_size, 0, undef, $adr, $blessed);
+
+    push @sizes, $level, _flags($_[0]) + $type, $total_size;
+    av_push (@sizes, $ZERO);
+    av_push (@sizes, $UNDEF);
+    push @sizes, $adr, $blessed;
+    return;
     }
 
-  my @res = ();
   if ($type eq 'ARRAY')
     {
-    my @r = ($level, S_ARRAY, $total_size, 0, undef, $adr, $blessed);
+    push @sizes, ($level, S_ARRAY, $total_size, 0, undef, $adr, $blessed);
+
+    my $index = scalar @sizes - 4;
     my $sum = 0;
     for (my $i = 0; $i < scalar @$ref; $i++)
       {
-      my @rs = _track_size( $ref->[$i], $level+1);
-      $sum += $rs[2];
-      push @r, @rs;
+      my $adr = _addr($ref->[$i], _type($ref->[$i]));
+
+      if (exists $SEEN{$adr} || ref($ref->[$i]))
+	{
+        my $index = scalar @sizes;
+        _track_size($ref->[$i], $level+1);
+        $sum += $sizes[$index+2];
+        }
+      else
+	{
+	# Put in the address of $ref in the %SEEN hash.
+        # If TRACK_DOUBLES is set, we also need to store scalars with
+	# REFCNT == 1 because somebody might have used hv_store() to make all
+	# keys point to the same scalar and these "shared" scalars have
+	# unfortunately a REFCNT of 1.
+	hv_store (%SEEN, $adr , $UNDEF) if $TRACK_DOUBLES || SvREFCNT($_[0]) > 1;
+	my $size = total_size($ref->[$i]);
+	push @sizes, $level+1, S_SCALAR, $size;
+	av_push (@sizes, $ZERO);
+	av_push (@sizes, $UNDEF);
+	push @sizes, $adr;
+	av_push (@sizes, $UNDEF);
+        $sum += $size;
+        }
       }
-    $r[3] = $r[2] - $sum;
-    push @res, @r;
+    $sizes[$index] = $total_size - $sum;
     }
   elsif ($type eq 'HASH')
     {
-    my @r = ($level, S_HASH, $total_size, 0, undef, $adr, $blessed);
+    my $index = scalar @sizes;
+    push @sizes, $level, S_HASH, $total_size, 0, undef, $adr, $blessed;
+
     my $sum = 0;
     foreach my $elem ( keys %$ref )
       {
       my $adr = _addr($ref->{$elem}, _type($ref->{$elem}));
       if (exists $SEEN{$adr} || ref($ref->{$elem}))
         {
-        my @rs = _track_size($ref->{$elem},$level+1);
-        $rs[1] += SF_KEY;
-        $rs[4] = $elem;
-        $rs[5] = $adr;
-        $rs[6] = blessed($ref->{$elem}) || '';
-        $sum += $rs[2];
-        push @r, @rs;
+        my $index = scalar @sizes;
+        _track_size($ref->{$elem},$level+1);
+
+	# XX TODO: use elements - X
+	$sizes[$index+1] += SF_KEY;
+	$sizes[$index+4] = $elem;
+	$sum += $sizes[$index+2];
         }
       else
         {
-        # put in the address of $ref in the %SEEN hash
-        hv_store (%SEEN, $adr , $UNDEF);
-        #$SEEN{$adr} = undef;
+        # Put in the address of $ref in the %SEEN hash.
+        # If TRACK_DOUBLES is set, we also need to store scalars with
+	# REFCNT == 1 because somebody might have used hv_store() to make all
+	# keys point to the same scalar and these "shared" scalars have
+	# unfortunately a REFCNT of 1.
+        hv_store (%SEEN, $adr , $UNDEF) if $TRACK_DOUBLES || SvREFCNT($_[0]) > 1;
         my $size = total_size($ref->{$elem});
-        push @r, $level+1, SF_KEY + S_SCALAR, $size, 0, $elem, $adr, '';
+	push @sizes, $level+1, SF_KEY + S_SCALAR, $size, 0, $elem, $adr, undef;
         $sum += $size;
         }
       }
-    $r[3] = $r[2] - $sum;
-    push @res, @r;
+    $sizes[$index+3] = $total_size - $sum;
     }
   elsif ($type eq 'REGEXP')
     {
-    return ($level, type($type), $total_size, 0, undef, $adr, $blessed);
+    push @sizes, $level, type($type), $total_size;
+    av_push (@sizes, $ZERO);
+    av_push (@sizes, $UNDEF);
+    push @sizes, $adr, $blessed;
     }
   elsif ($type eq 'REF')
     {
@@ -461,26 +533,25 @@ sub _track_size
     $type ='SCALAR' if !ref(${$_[0]});
     my $flags = SF_REF;
     $flags += SF_WEAK if isweak($_[0]);
-    my @r = 
+
+    push @sizes, 
      ($level, $flags + type($type), $total_size, 0, undef, $adr, $blessed);
-    push @r, _track_size($$ref,$level+1);
-    $r[2] += $SIZE_OF_REF;			# account for wrong \"" sizes
-    $r[3] = $r[2] - total_size($$ref);
-    push @res, @r;
+    my $index = scalar @sizes - 5;
+    _track_size($$ref,$level+1);
+    $sizes[$index] += $SIZE_OF_REF;			# account for wrong \"" sizes
+    $sizes[$index+1] = $sizes[$index] - total_size($$ref);
     }
   # SCALAR reference must come after Regexp, because these are also SCALAR !?
   elsif ($type eq 'SCALAR')
     {
-    # return ($level, SF_REF + _flags($_[0]), $total_size, 0, undef, $adr, $blessed);
-    return ($level, SF_REF, $total_size, 0, undef, $adr, $blessed);
+    push @sizes, ($level, SF_REF, $total_size, 0, undef, $adr, $blessed);
     }
   else
     {
     my $overhead = 0;
     $overhead = -1 if type($type) == S_UNKNOWN;
-    return ($level, type($type), $total_size, $overhead, undef, $adr, $blessed);
+    push @sizes, ($level, type($type), $total_size, $overhead, undef, $adr, $blessed);
     }
-  @res;
   }
 
 sub _flags
@@ -493,6 +564,7 @@ sub _flags
   # XXX TODO: how to find out if something is:
   # an LVALUE
   # a DUALVAR
+  # a STASH
 
   $flags;
   }
@@ -548,6 +620,8 @@ Nothing per default, but can export the following per request:
   
 	report_size
 	track_size
+	track_sizes
+	hide_tracks
 	element_type
 	entries_per_element
 
@@ -610,6 +684,11 @@ optional keys:
 		  will only get the header, total and summary (if requested)
 	summary   if true, print a table summing up the memory details on a
 		  per-class basis
+	doubles	  If true, hash keys and array elemts that point to the same
+		  thing in memory will be reported. Default is off, since it
+		  saves memory. Note that you will usually only get double
+		  entries in hashes and array by using Array::RefElem's methods
+		  or similiar hacks/tricks.
 
 =head2 entries_per_element
 
@@ -617,15 +696,15 @@ optional keys:
 
 Returns the number of entries per element that L<track_size()> will generate.
 
-=head2 track_size
+=head2 track_sizes
 
-	@elements = track_size( $reference, $level);
+	$elements = track_sizes( $reference, $level);
 
-Walk the given scalar or reference recursively and returns an array, containing
-L<entries_per_element> entries for each element in the structure pointed to by
-C<$reference>. C<$reference> can also be a plain scalar.  
+Walk the given scalar or reference recursively and returns a ref to an array,
+containing L<entries_per_element> entries for each element in the structure
+pointed to by C<$reference>. C<$reference> can also be a plain scalar.  
 
-The entries currently are:
+The entries for each element are currently:
 
 	level	  the indend level
 	type	  the type of the element, S_SCALAR, S_HASH, S_ARRAY etc
@@ -637,7 +716,18 @@ The entries currently are:
 	addr	  memory address of the element
 	class	  classname that the element was blessed into, or ''
 
-C<track_size> calls itself recursively for ARRAY and HASH references. 
+=head2 track_size
+
+	@elements = track_size( $reference, $level);
+
+Works just like L<track_sizes>, but for backward compatibility reasons
+returns an array with the results.
+
+=head2 hide_tracks
+
+	hide_tracks();
+
+Releases the memory consumed by a call to L<track_size> or L<track_sizes>.
 
 =head2 type_name
 
@@ -648,8 +738,8 @@ Maps a type name (like 'SCALAR') to a type number (lilke S_SCALAR).
 =head1 WRAP YOUR OWN
 
 If you want to create your own report with different formattings, please
-use L<track_size> and create a report out of the data you get. Look at the
-source code for L<report_size> how to do this - it is easy!
+use L<track_size> and create a report out of the data you get back from it.
+Look at the source code for L<report_size> how to do this - it is easy!
 
 =head1 CAVEATS
 
@@ -680,6 +770,6 @@ Apart from some problems with Devel::Size, none known so far.
 
 =head1 AUTHOR
 
-(c) 2004 by Tels http://bloodgate.com
+(c) 2004,2005 by Tels http://bloodgate.com
 
 =cut

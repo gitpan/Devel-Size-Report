@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 37;
+  plan tests => 38;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -173,9 +173,16 @@ like ($A, qr/Regexp/, 'Contains a regexp');
 
 #use Devel::Peek; print Dump(substr($x,0,2));
 
-$A = report_size( substr($x,0,2), { } );# head => '', class => '' } );
+$A = report_size( substr($x,0,2), { } );
 
 #print "$A\n";
 
 like ($A, qr/Scalar/, "Contains 'Scalar'");
+
+#############################################################################
+# GLOB
+
+$A = report_size( \*STDIN, { } );
+
+like ($A, qr/Glob/, "Contains 'Glob'");
 

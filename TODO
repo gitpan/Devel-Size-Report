@@ -1,7 +1,4 @@
 
-* We need only to track elements with a refcount >1 to detect
-  cycles, that would reduce the size of the %SEEN hash considerable.
-
 * let the user make more formatting choices
 
 * test for debug option

@@ -97,7 +97,7 @@ $elems = { foo => $o }; $elems->{baz} = $o;
 $CYCLE = report_size( $elems, { head => '', addr => 1} );
 unlike ($CYCLE, qr/(Circular|Double)/i, 'no cycle or double');
 
-print $CYCLE;
+# print $CYCLE;
 
 #############################################################################
 # Perl makes a copy of the scalar when assigning it to a hash. See
