@@ -11,7 +11,32 @@ my $token = shift || '"A scalar"';
 my $options = shift || {};
 eval (" \$options = { $options }") if !ref $options;
 
-$options->{head} =
+my $map = {
+  a => 'addr',
+  b => 'bytes',
+  c => 'class',
+  t => 'total',
+  o => 'overhead',
+  i => 'indend',
+  l => 'left',
+  h => 'head',
+  };
+
+# map 'a' => 'addr'
+my $opt = {};
+foreach my $key ( keys %$options )
+  {
+  if (length($key) != 1)
+    {
+    $opt->{$key} = $options->{$key};
+    }
+  else
+    {
+    $opt->{$map->{$key}} = $options->{$key};
+    }
+  }
+
+$opt->{head} =
  "Size report v$Devel::Size::Report::VERSION for '$token' =>"; 
 
 my $eval = $token;
@@ -19,4 +44,4 @@ my $eval = $token;
 # make "Foo->new(1)" => "use Foo; Foo->new(1)"
 $eval = "use $1; $token" if $token =~ /^\s*([\w:]+)->/;
 
-print report_size ( eval $eval, $options ); 
+print report_size ( eval $eval, $opt ); 

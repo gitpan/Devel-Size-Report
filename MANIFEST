@@ -1,4 +1,5 @@
 CHANGES
+BUGS
 LICENSE
 MANIFEST
 NEW
@@ -13,4 +14,6 @@ t/00_basic.t
 t/01_track.t
 t/02_report.t
 t/03_format.t
+t/04_cycle.t
+t/05_address.t
 META.yml                                 Module meta-data (added by MakeMaker)

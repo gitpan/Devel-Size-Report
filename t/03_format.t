@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 6;
+  plan tests => 10;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -54,10 +54,32 @@ is ($Z =~ /Hash\(0x[\da-fA-F]+\) /, 1, 'report contains address');
 $Z = report_size( [  [ 123, 321 ], \12 ], { addr => 1, } );
 my $cnt = 0; $Z =~ s/\(0x[\da-fA-F]+\)/$cnt++/eg;
 
-is ($cnt, 4, 'report contains 4 addresses');
+is ($cnt, 7, 'report contains 7 addresses');
 
 $Z = report_size( [  { a => [ 123, 321 ], b => \12 } ], { addr => 1, } );
 $cnt = 0; $Z =~ s/\(0x[\da-fA-F]+\)/$cnt++/eg;
 
-is ($cnt, 5, 'report contains 5 addresses');
+is ($cnt, 8, 'report contains 8 addresses');
+
+#############################################################################
+# in regexps
+
+$A = report_size( qr/^(foo|bar)$/, { head => '', addr => 1} );
+
+is ( $A =~ /\(0x[a-fA-F0-9]+\)/ || 0, 1, 'Contains addr');
+
+#############################################################################
+# class names
+
+$x = { foo => 0 }; bless $x, 'Foo';
+
+$A = report_size( $x, { head => '', class => 1} );
+is ( $A =~ /Hash \(Foo\)/ || 0, 1, 'Contains (Foo)');
+
+$y = [ bar => $x ]; bless $y, 'Bar';
+
+$A = report_size( $y, { head => '', class => 1} );
+
+is ( $A =~ /Hash \(Foo\)/ || 0, 1, 'Contains (Foo)');
+is ( $A =~ /Array \(Bar\)/ || 0, 1, 'Contains (Bar)');
 

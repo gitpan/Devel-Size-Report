@@ -1,0 +1,40 @@
+
+* LVALUES don't work
+* having two or more references pointing to the same data doesn't work
+  properly:
+
+  my $array = [ 8, 9 ];
+  my $b = \$array;
+  my $c = \$array;
+  
+  $CYCLE = report_size( [ $b, $c ], { head => '', addr => 1} );
+
+  print "$CYCLE\n";
+  use Devel::Peek; print Dump($elems);
+
+  Output (showing wrong total size?) with wrong size for second array:
+  #
+  #  Array(0x8248c70) 200 bytes (overhead: unknown)
+  #    Array Ref(0x8248c7c) 108 bytes (overhead: 16 bytes, 14.81%)
+  #      Array(0x8248cc4) 92 bytes (overhead: 60 bytes, 65.22%)
+  #        Scalar(0x8249ac4) 16 bytes
+  #        Scalar(0x815a5e4) 16 bytes
+  #    Array Ref(0x8249ab8) 108 bytes (overhead: 16 bytes, 14.81%)
+  #      Circular ref(0x8248cc4) 16 bytes
+* Math::BigRat exhibit a similiar problem:
+  # perl -Ilib example/psize "Math::BigRat->new(2)" "c => 1"
+  Size report v0.05 for 'Math::BigRat->new(2)' => '2' (Math::BigRat):
+    Hash (Math::BigRat) 517 bytes (overhead: unknown)
+      '_d' => Hash (Math::BigInt) 299 bytes (overhead: 185 bytes, 61.87%)
+        'value' => Array 72 bytes (overhead: 56 bytes, 77.78%)
+          Scalar 16 bytes
+        '_f' => Scalar 16 bytes
+        'sign' => Scalar 26 bytes
+      '_n' => Hash (Math::BigInt) 299 bytes (overhead: 185 bytes, 61.87%)
+        'value' => Array 72 bytes (overhead: 56 bytes, 77.78%)
+          Scalar 16 bytes
+        '_f' => Scalar 16 bytes
+        'sign' => Scalar 26 bytes
+      'sign' => Scalar 26 bytes
+  Total: 517 bytes
+

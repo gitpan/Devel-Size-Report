@@ -41,7 +41,7 @@ my @size;
 is (scalar @size, entries_per_element(), '1 (1 scalar) elements');
 
 @size = track_size ( \$x );
-is (scalar @size, entries_per_element(), '1 (1 scalar) elements');
+is (scalar @size, entries_per_element() * 2, '2 (1 ref, 1 scalar) elements');
 
 # array ref
 @size = track_size ( $elems );

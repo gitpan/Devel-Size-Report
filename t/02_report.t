@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 23;
+  plan tests => 26;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -45,7 +45,7 @@ my @size;
 # check that the report does not change the size!
 my $old_size = total_size($x);
 @size = track_size( $x );
-is ($size[2], $old_size, "still $old_size bytes");
+is ($size[2], $old_size, "old size agrees with total_size");
 
 my $Z = report_size( $x, { head => '' } );
 
@@ -94,11 +94,47 @@ is ($C, $D, 'two different sized scalars reports are different');
 my $code = sub { my $x = 129; $x = 12 if $x < 130; };
 
 #############################################################################
+# SCALAR 
+
+$A = report_size( "1234", { head => '' } );
+
+is ($A =~ /Scalar /, 1, 'Scalar');
+
+#############################################################################
+# HASH 
+
+$A = report_size( { foo => "1234" }, { head => '' } );
+
+is ($A =~ /Hash /, 1, 'Hash');
+is ($A =~ /'foo' =>/, 1, 'Hash key is present');
+
+#############################################################################
+# ARRAY 
+
+$A = report_size( [ 1, 2 ], { head => '' } );
+
+is ($A =~ /Array /, 1, 'Array');
+
+#############################################################################
 # SCALAR references
 
 $A = report_size( \"1234", { head => '' } );
 
-is ($A =~ /Scalar reference/, 1, 'Scalar ref');
+is ($A =~ /Scalar Ref/, 1, 'Scalar ref');
+
+#############################################################################
+# ARRAY references
+
+$A = report_size( \ [ 8, 9 ], { head => '' } );
+
+is ($A =~ /Array Ref/, 1, 'Array ref');
+
+#############################################################################
+# HASH references
+
+$A = report_size( \ { a => 89 }, { head => '' } );
+
+is ($A =~ /Hash Ref/, 1, 'Hash ref');
 
 #############################################################################
 # CODE 
@@ -107,31 +143,6 @@ is ($A =~ /Scalar reference/, 1, 'Scalar ref');
 my $CODE = report_size( $code, { head => '' } );
 
 is ( $CODE =~ /Code /, 1, 'Contains code');
-
-#############################################################################
-# test for cycles and circular references:
-
-my $a = { a => 1 }; $a->{b} = $a; 
-
-# Output like:
-#  Hash 170 bytes (overhead: 138 bytes, 81.18%)
-#    'a' => Scalar 16 bytes
-#    'b' => Circular reference 16 bytes
-#Total: 170 bytes
-
-my $CYCLE = report_size( $a, { head => '' } );
-
-is ($CYCLE =~ /'b' => Circular reference/, 1, 'Contains a cycle');
-
-$a = { a => 1, b => [ 1, 2, { u => 'z' } ] };
-$a->{b}->[3] = $a->{b}; 
-$a->{b}->[2]->{foo} = $a->{b}; 
-
-$CYCLE = report_size( $a, { head => '' } );
-
-is ($CYCLE =~ /'foo' => Circular reference/, 1, 'Contains a cycle');
-$a = 0; $CYCLE =~ s/Circular reference/$a++/eg;
-is ($a, 2, 'Contains two cycles');
 
 #############################################################################
 # REGEXP
@@ -145,9 +156,14 @@ is ($A =~ /Regexp/, 1, 'Contains a regexp');
 
 # XXX TODO: I have no idea how to create one
 
-#sub lefty : lvalue {
-#  my $arg = 9;
-#  };
-#
-#$A = report_size( \&lefty(1), { head => '' } );
+sub lefty : lvalue {
+  $x;
+  };
 
+#use Devel::Peek; print Dump(\&lefty);
+
+$A = report_size( \&lefty, { head => '', class => '' } );
+
+#is ($A =~ /Lvalue/, 1, 'Contains a lvalue');
+#
+#print "$A\n";

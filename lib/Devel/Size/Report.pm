@@ -1,7 +1,7 @@
 package Devel::Size::Report;
 
 use Devel::Size qw(size total_size);
-use Scalar::Util qw/reftype refaddr/;
+use Scalar::Util qw/reftype refaddr blessed/;
 
 require Exporter;
 @ISA = qw/Exporter/;
@@ -14,7 +14,7 @@ use strict;
 
 use vars qw/$VERSION/;
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 BEGIN
   {
@@ -34,11 +34,12 @@ sub S_GLOB () { 5; }
 sub S_CODE () { 6; }
 sub S_REGEXP () { 7; }
 sub S_LVALUE () { 8; }
-sub S_REF () { 8; }
+sub S_DOUBLE () { 9; }
 
 sub S_KEY () { 0x100; }
+sub S_REF () { 0x200; }
 
-sub entries_per_element () { 6; }
+sub entries_per_element () { 7; }
 
 # default mapping
 my $TYPE = { 
@@ -50,9 +51,25 @@ my $TYPE = {
   S_CODE() => 'Code', 
   S_REGEXP() => 'Regexp', 
   S_LVALUE() => 'Lvalue', 
-  S_CYCLE() => 'Circular reference', 
-  S_REF() => 'Scalar reference', 
+  S_CYCLE() => 'Circular ref', 
+  S_DOUBLE() => 'Double scalar ref', 
+  S_REF() => 'Ref', 
   S_KEY() => '', 
+  };
+
+# map 'SCALAR' => S_SCALAR
+my $NAME_MAP = { 
+  SCALAR => S_SCALAR(),
+  HASH => S_HASH(),
+  GLOB => S_GLOB(),
+  ARRAY => S_ARRAY(),
+  CODE => S_CODE(),
+  REGEXP => S_REGEXP(),
+  LVALUE => S_LVALUE(),
+  CYCLE => S_CYCLE(),
+  DOUBLE => S_DOUBLE(),
+  REF => S_REF(),
+  KEY => S_KEY(),
   };
 
 sub report_size
@@ -88,6 +105,9 @@ sub report_size
   my $foverhead = $options->{overhead};
   $foverhead = " (overhead: %i%s, %0.2f%%)" if !defined $foverhead;
   
+  # show class?
+  my $class = $options->{class} || 0;
+  
   # show addr?
   my $addr = $options->{addr} || 0;
 
@@ -98,12 +118,21 @@ sub report_size
   for (my $i = 0; $i < @size; $i += $e)
     {
     my $type = element_type( ($size[$i+1] & 0xFF),$names);
+    if ( ($size[$i+1] & S_REF) != 0)
+      {
+      $type .= " " . element_type(S_REF, $names);
+      }
+
+    # add addr of element if wanted
     $type .= "(" . $size[$i+5] . ")" if $addr && $size[$i+5];
+
+    # add class of element if wanted
+    $type .= " (" . $size[$i+6] . ")" if $class && $size[$i+6];
+
     my $str = $type;
     if ( ($size[$i+1] & S_KEY) != 0)
       {
-      $str = element_type( ($size[$i+1] & S_KEY),$names);
-      $str .= " '$size[$i+4]' => " . $type;
+      $str = "'$size[$i+4]' => " . $type;
       }
     $str .= " $size[$i+2]$bytes";
     if ($size[$i+3] != 0)
@@ -114,10 +143,9 @@ sub report_size
       $overhead = ' (overhead: unknown)' if $size[$i+3] < 0;
       $str .= $overhead;
       }
-    $str .= "\n";
-    $text .= $inner . ($indend x $size[$i]) . $str;
+    $text .= $inner . ($indend x $size[$i]) . "$str\n";
     }
-  $text .= $left . "Total: " . $size[2] . $bytes . "\n" if $total;
+  $text .= $left . "Total: $size[2]$bytes\n" if $total;
   $text;
   }
 
@@ -129,12 +157,50 @@ sub element_type
   $TYPE->{$type};
   }
 
+sub type
+  {
+  # map a typename to a type number
+  my ($type) = @_;
+
+  return S_UNKNOWN unless exists $NAME_MAP->{$type};
+  $NAME_MAP->{$type};
+  }
+
 sub track_size
   {
   undef %SEEN;		# reset cycle memory
   my @sizes = _track_size(@_);
   undef %SEEN;		# save memory, throw away
   @sizes;
+  }
+
+sub _addr
+  {
+  my $adr;
+  if (ref($_[0]) && $_[1] ne 'REF')
+    {
+    $adr = sprintf("0x%x", refaddr($_[0]));
+    }
+  else
+    {
+    $adr = sprintf("0x%x", refaddr(\($_[0])));
+    }
+
+  $adr;
+  }
+
+sub _type
+  {
+  my $type = uc(reftype($_[0]) || '');
+  my $class = blessed($_[0]) || '';
+
+  # blessed "Regexp" and ref to scalar?
+  $type ='REGEXP' if $class eq 'Regexp';
+
+  # refs to scalars are tricky
+  $type ='REF' 
+    if ref($_[0]) && UNIVERSAL::isa($_[0],'SCALAR') && $type ne 'REGEXP';
+  $type;
   }
 
 sub _track_size
@@ -148,33 +214,38 @@ sub _track_size
   # DONT do total_size($ref) because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
   my $total_size = total_size($_[0]);
-  my $adr = ''; $adr = sprintf("0x%x", refaddr($_[0])) if refaddr($_[0]);
-
-  # not a reference, but a plain scalar?
-  return ($level, S_SCALAR, $total_size, 0, undef, $adr) unless ref($ref);
-  
-  my $type = uc(reftype($_[0]) || '');
-  $type ='REGEXP' if UNIVERSAL::isa($_[0],'REGEXP') ||
-		     UNIVERSAL::isa($_[0],'Regexp');
+  my $type = _type($_[0]);
+  my $blessed = blessed($_[0]) || '';
  
+  my $adr = _addr($_[0],$type);
+
   if (exists $SEEN{$adr})
     {
     # already seen this part of the world, so return
     # XXX TODO: how big is just the reference?
-    return ($level, S_CYCLE, size(\1), 0, undef, $adr);
+    if (ref($ref))
+      {
+      return ($level, S_CYCLE, size(\\1), 0, undef, $adr, $blessed);
+      }
+    # a scalar seen twice
+    return ($level, S_DOUBLE, 0, 0, undef, $adr, '');
     }
 
   # put in the address of $ref in the %SEEN hash
   $SEEN{$adr}++;
 
+  # not a reference, but a plain scalar?
+  return ($level, S_SCALAR, $total_size, 0, undef, $adr, $blessed)
+    unless ref($ref);
+
   my @res = ();
   if ($type eq 'ARRAY')
     {
-    my @r = ($level, S_ARRAY, $total_size, 0, undef, $adr);
+    my @r = ($level, S_ARRAY, $total_size, 0, undef, $adr, $blessed);
     my $sum = 0;
-    foreach my $elem ( @$ref )
+    for (my $i = 0; $i < scalar @$ref; $i++)
       {
-      my @rs = _track_size( $elem, $level+1);
+      my @rs = _track_size( $ref->[$i], $level+1);
       $sum += $rs[2];
       push @r, @rs;
       }
@@ -183,57 +254,59 @@ sub _track_size
     }
   elsif ($type eq 'HASH')
     {
-    my @r = ($level, S_HASH, $total_size, 0, undef, $adr);
+    my @r = ($level, S_HASH, $total_size, 0, undef, $adr, $blessed);
     my $sum = 0;
     foreach my $elem ( keys %$ref )
       {
-      my $adr = ''; 
-      $adr = sprintf("0x%x", refaddr($ref->{$elem})) if refaddr($ref->{$elem});
+      my $adr = _addr($ref->{$elem}, _type($ref->{$elem}));
       if (ref($ref->{$elem}))
         {
         my @rs = _track_size($ref->{$elem},$level+1);
         $rs[1] += S_KEY;
         $rs[4] = $elem;
         $rs[5] = $adr;
+        $rs[6] = blessed($ref->{$elem}) || '';
         $sum += $rs[2];
         push @r, @rs;
         }
       else
         {
         my $size = total_size($ref->{$elem});
-        push @r, $level+1, S_KEY + S_SCALAR, $size, 0, $elem, $adr;
+        push @r, $level+1, S_KEY + S_SCALAR, $size, 0, $elem, $adr, '';
         $sum += $size;
         }
       }
     $r[3] = $r[2] - $sum;
     push @res, @r;
     }
-  elsif ($type eq 'GLOB')
-    {
-    return ($level, S_GLOB, $total_size, 0, undef, $adr);
-    }
-  elsif ($type eq 'CODE')
-    {
-    return ($level, S_CODE, $total_size, 0, undef, $adr);
-    }
   elsif ($type eq 'REGEXP')
     {
-    return ($level, S_REGEXP, $total_size, 0, undef, $adr);
+    return ($level, type($type), $total_size, 0, undef, $adr, $blessed);
+    }
+  elsif ($type eq 'REF')
+    {
+    my $type = uc(reftype(${$_[0]}) || '');
+    my $blessed = blessed (${$_[0]} ) || '';
+    $type ='REGEXP' if $blessed eq 'Regexp';
+    $type ='SCALAR' if !ref(${$_[0]});
+    my @r = 
+     ($level, S_REF + type($type), $total_size, 0, undef, $adr, $blessed);
+    push @r, _track_size($$ref,$level+1);
+    $r[3] = $r[2] - total_size($$ref);
+    push @res, @r;
     }
   # SCALAR reference must come after Regexp, because these are also SCALAR !?
   elsif ($type eq 'SCALAR')
     {
     # XXX TODO total_size($$ref) == total_size($ref) - shouldn't they be
     # different?
-    return ($level, S_REF, $total_size, 0, undef, $adr);
-    }
-  elsif ($type eq 'LVALUE')
-    {
-    return ($level, S_LVALUE, $total_size, 0, undef, $adr);
+    return ($level, S_REF, $total_size, 0, undef, $adr, $blessed);
     }
   else
     {
-    return ($level, S_UNKNOWN, $total_size, -1, undef, $adr);
+    my $overhead = 0;
+    $overhead = -1 if type($type) == S_UNKNOWN;
+    return ($level, type($type), $total_size, $overhead, undef, $adr, $blessed);
     }
   @res;
   }
@@ -318,6 +391,7 @@ optional keys:
 		  The default is:
 		  " (overhead: %i%s, %0.2f%%)"
 	addr 	  if true, for each element the memory address will be output
+	class	  if true, show the class each element was blessed in
 
 =head2 entries_per_element
 
@@ -343,8 +417,15 @@ The entries currently are:
 		  in bytes (size - sum(size of all elements)).
 	name	  if type & S_KEY != 0, this contains the name of the hash key
 	addr	  memory address of the element
+	class	  classname that the element was blessed into, or ''
 
 C<track_size> calls itself recursively for ARRAY and HASH references. 
+
+=head2 type_name
+
+	$type_number = type($type_name);
+
+Maps a type name (like 'SCALAR') to a type number (lilke S_SCALAR).
 
 =head1 WRAP YOUR OWN
 

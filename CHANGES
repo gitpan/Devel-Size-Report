@@ -23,3 +23,10 @@ Revision history for Devel::Size::Report
   * use Scalar::Util to get reftype and refaddr
   * added option 'addr' to report_size() to print elem address
   * example/psize takes options as second string argument
+2004-01-13 v0.05 Tels 76 tests
+  * references to ARRAY, HASH are handled properly
+  * references to SCALARs are now reported likewise than ARRAY/HASH refs
+  * fixed indendation bug with hash keys pointing to SCALARs
+  * more tests, especially for the addr => 1 feature
+  * psize takes options as single-letter abbrev., too
+  * added option "class" to optionally show classnames

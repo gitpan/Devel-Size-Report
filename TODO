@@ -3,3 +3,8 @@
 * document how to wrap your own report_size function
 * add a report_size_in_html() function? or make generic "string-hooks" that
   can be used to have a $preamble etc?
+* plain scalars do not yet print their address
+* print blessed() argument (aka class) on request
+* [ 1,2] is technically a ref to an array, \[ 1,2 ] is technically a ref to
+  an array ref. Currently, the first is reported as "Array", the second as
+  "Array ref". Is this right?
