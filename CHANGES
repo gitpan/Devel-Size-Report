@@ -71,3 +71,16 @@ Revision history for Devel::Size::Report
   * streamline array and hash member tracking (for simple elements)
   * streamline type()
   * add track_sizes() and hide_tracks()
+2005-03-04 v0.10 Tels 145 tests
+  * amend README, SYNOPSIS, example/size.pl
+  * psize: support for option "d", print help if no arguments are given
+  * indend => indent (Thanx Jim Cromie!)
+  * sizes for array/hash refs were missing the ref itself (16 bytes on 32 bit
+    systems, more on 64 bit). This also makes "[]" and "[ 1, [] ]" report
+    consistent sizes for the inner array.
+  * compute correct size for circular references
+  * rewrote the size-gathering code to use size() instead of total_size(),
+    this makes it much faster, especially for deep structures and ones with
+    cycles
+  * track_size() and track_sizes() also need to honor option "doubles"
+  * does no longer warn about "deep recursion"

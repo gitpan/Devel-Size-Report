@@ -1,12 +1,55 @@
 #!/usr/bin/perl -w
 
-# Run on a shell like:
-#   ./psize '[1, 2, { a => "foo" }'
-# or:
-#   ./psize 'Math::BigInt->new(123)' 't => "Total"'
+=pod
+
+=head1 NAME
+
+psize - report memory usage for Perl structures
+
+=head1 SYNOPSYS
+
+	psize 'Structure as perl code' ['options as string in hash form']
+
+	psize '[1, 2, { a => "foo" }'
+
+	psize 'Math::BigInt->new(123)' 't => "Total"'
+
+Valid options are:
+
+Boolean options:
+
+	Short name	Long name	Description
+	a		addr		print addresses
+	c		class		print class names
+	d		doubles		extensive cycle detection
+					(memory intensive)
+  	t		total		print a total
+	o		overhead	print overhead
+	h		head		print a header
+	s		summary		print a summary
+	te		terse		generate terse report
+
+String options:
+
+	i		indent		string to indent with		
+	l		left		very first indent string
+	b		bytes		The string for sizes,
+					defaults to "bytes"
+  };
+
+=head1 DESCRIPTION
+
+=cut
 
 use strict;
 use Devel::Size::Report qw/report_size/;
+
+if (@ARGV == 0)
+  {
+  # no options?
+  require Pod::Usage;
+  Pod::Usage::pod2usage(2);
+  }
 
 my $token = shift || '"A scalar"';
 
@@ -17,6 +60,7 @@ my $map = {
   a => 'addr',
   b => 'bytes',
   c => 'class',
+  d => 'doubles',
   t => 'total',
   o => 'overhead',
   i => 'indend',

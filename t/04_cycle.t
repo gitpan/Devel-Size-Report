@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 14;
+  plan tests => 18;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -137,7 +137,7 @@ $CYCLE = report_size( $a, { head => '', addr => 1} );
 #      'umpf' => Scalar(0x82add38) 16 bytes
 #      'parent' => Circular ref(0x82add08) 16 bytes
 
-$CYCLE =~ /Hash\((.*?)\)/;
+$CYCLE =~ /Hash ref\((.*?)\)/;
 
 my $adr = $1;
 
@@ -146,28 +146,21 @@ is ($adr, sprintf("0x%x",refaddr($a)), 'right address found');
 
 like ($CYCLE, qr/parent.*Circular.*$adr/, 'circular ref to parent');
 
-exit;
-
 ##############################################################################
 ##############################################################################
 
-my $array = [ 8, 9 ];
-my $b = \$array;
-my $c = \$array;
+my $array = [ 1,2,3 ];
 
-$CYCLE = report_size( [ $b, $c ], { head => '', addr => 1} );
+$CYCLE = report_size ( [ $array, [ 1, $array, 2 ]] );
 
 is (($CYCLE =~ /Cycle/) ||  0, 0, 'no cycle');
 
-print "$CYCLE\n";
-use Devel::Peek; print Dump($elems);
+my @sizes = ();
+$CYCLE =~ s/Array ref (\d+) bytes/push @sizes, $1; $1/eig;
 
-#output (showing wrong total size, and wrong size for second array)
-#ok 6 - no cycle
-#  Array(0x8248c70) 200 bytes (overhead: unknown)
-#    Array Ref(0x8248c7c) 108 bytes (overhead: 16 bytes, 14.81%)
-#      Array(0x8248cc4) 92 bytes (overhead: 60 bytes, 65.22%)
-#        Scalar(0x8249ac4) 16 bytes
-#        Scalar(0x815a5e4) 16 bytes
-#    Array Ref(0x8249ab8) 108 bytes (overhead: 16 bytes, 14.81%)
-#      Circular ref(0x8248cc4) 16 bytes
+print "# " . join (" ", @sizes) . "\n";
+
+is ($sizes[1], $sizes[2], 'second and third array have same size');
+is ($sizes[0] > $sizes[2], 1, 'first array is biggest');
+is ($sizes[0] > $sizes[1], 1, 'first array is biggest');
+

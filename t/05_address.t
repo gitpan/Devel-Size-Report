@@ -27,7 +27,7 @@ my $x = 9; my $y = 18;
 
 my $A = report_size( { foo => $x, bar => $y }, { addr => 1, } );
 
-is ($A =~ /Hash\(0x[\da-fA-F]+\) /, 1, 'report contains address');
+is ($A =~ /Hash ref\(0x[\da-fA-F]+\) /, 1, 'report contains address');
 
 #############################################################################
 # reference and scalar have different address

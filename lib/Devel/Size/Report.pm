@@ -1,6 +1,6 @@
 package Devel::Size::Report;
 
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 use Devel::Size qw(size total_size);
 use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;
@@ -36,28 +36,39 @@ require Exporter;
   /;
 
 use strict;
-  
-my $SIZE_OF_REF;
+
+#############################################################################
+# The following should not be global to be thread safe:
+
 # If somebody used hv_store, we need also to enter hash key addresses into
 # SEEN. Default is off, because this wastes memory.
 my $TRACK_DOUBLES = 0;
+
+# _track_size() stores it's result here:
+my @sizes;
+
+# for cycles in memory:
+my %SEEN;
+
+# count calls to track_size for statistics
+my $CALLS;
+
+#############################################################################
+# The overhead for one ref. Used to correct the results from Devel::Size.
+my $SIZE_OF_REF;
 
 BEGIN
   {
   # disable any warnings Devel::Size might spill
   $Devel::Size::warn = 0;
 
-  # Devel::Size will get the size wrong for \$a, so we use it to compute
-  # the size for \\0 and \0 and infer the overhead for a reference from that
-  # Thanx to SADAHIRO Tomoyuki.
+  # Devel::Size will dereference arguments, so it misses the size of the
+  # reference. Compute the size for \\0 and \0 and infer the overhead for
+  # one reference from that. Thanx to SADAHIRO Tomoyuki.
 
   $SIZE_OF_REF = total_size(\\0) - total_size(\0);
   }
 
-# for cycles in memory:
-my %SEEN;
-# _track_size() stores it's result here:
-my @sizes;
 # scalar that can be entered into %SEEN many times:
 my $UNDEF = undef;
 # scalar that can be entered into @sizes many times:
@@ -90,9 +101,9 @@ sub entries_per_element () { 7; }
 my $TYPE = { 
   S_SCALAR() => 'Scalar', 
   S_UNKNOWN() => 'Unknown', 
-  S_HASH() => 'Hash', 
+  S_HASH() => 'Hash ref', 
   S_GLOB() => 'Glob', 
-  S_ARRAY() => 'Array', 
+  S_ARRAY() => 'Array ref', 
   S_CODE() => 'Code', 
   S_REGEXP() => 'Regexp', 
   S_LVALUE() => 'Lvalue', 
@@ -151,7 +162,7 @@ sub _default_options
   my $o = {};
   for my $k (keys %$options) { $o->{$k} = $options->{$k}; }
   
-  $o->{indend} = '  ' if !defined $o->{indend};
+  $o->{indent} = '  ' if !defined $o->{indent};
   $o->{names} ||= $TYPE;
 
   $o->{bytes} = 'bytes' unless defined $o->{bytes};
@@ -191,7 +202,7 @@ sub report_size
   my $options = _default_options($opt);
 
   $TRACK_DOUBLES = $options->{doubles} || 0;
-
+  
   # DONT do "track_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
 
@@ -200,7 +211,7 @@ sub report_size
 
   my $text = '';
  
-  my $indend = $options->{indend};
+  my $indent = $options->{indent};
   my $names = $options->{names};
   my $bytes = $options->{bytes};
   my $left = $options->{left}; 
@@ -285,7 +296,7 @@ sub report_size
           $overhead = ' (overhead: unknown)' if $sizes[$i+3] < 0;
         $str .= $overhead;
         }
-      $text .= $inner . ($indend x $sizes[$i]) . "$str\n";
+      $text .= $inner . ($indent x $sizes[$i]) . "$str\n";
       }
     } 
 
@@ -297,7 +308,7 @@ sub report_size
     $text .= "Total memory by class (inclusive contained elements):\n";
     foreach my $k (sort $sort keys %$count)
       {
-      $text .= $indend . _right_align($sum->{$k},10) . " bytes in " . _right_align($count->{$k},6) . " $k\n";
+      $text .= $indent . _right_align($sum->{$k},10) . " bytes in " . _right_align($count->{$k},6) . " $k\n";
       }
     }
   my $elements = scalar @sizes / $e;
@@ -337,21 +348,25 @@ sub track_sizes
   {
   my $opt = $_[1];
 
+  $TRACK_DOUBLES = $opt->{doubles} || 0;
+  
   my $time = time();		# record start time
   undef %SEEN;			# reset cycle memory
+  $CALLS = 0;
   @sizes = ();			# reset results array & stores result:
   _track_size($_[0]); 		# use $_[0] directly to avoid slot-reusing
 
   if ($opt->{debug})
     {
     $time = time() - $time; 
-    print STDERR " DEBUG: Devel::Size::Report v$Devel::Size::Report::VERSION\n";
+    print STDERR "\n DEBUG: Devel::Size::Report v$Devel::Size::Report::VERSION\n";
     my $size_seen = total_size(\%SEEN);
     my $size_sizes = total_size(\@sizes);
 
     print STDERR " DEBUG: \%SEEN : ", _right_align($size_seen,12), " bytes, ", scalar keys %SEEN, " elements\n";
     print STDERR " DEBUG: \@sizes: ", _right_align($size_sizes,12), " bytes, ", scalar @sizes, " elements\n";
     print STDERR " DEBUG: Total : ", _right_align($size_sizes + $size_seen,12), " bytes, ", scalar @sizes + scalar keys %SEEN, " elements\n";
+    print STDERR " DEBUG: Calls to _track_size: $CALLS\n";
     print STDERR " DEBUG: took ", sprintf("%0.3f",$time), " seconds to gather data for report.\n\n";
     }
   undef %SEEN;		# save memory, throw away
@@ -361,8 +376,6 @@ sub track_sizes
 
 sub track_size
   {
-  my $opt = $_[1];
-
   # fill the results into @sizes
   track_sizes($_[0], $_[1]);
 
@@ -409,9 +422,13 @@ sub _track_size
 
   $level ||= 0;
 
+  $CALLS++;
+  
+  no warnings 'recursion';
+
   # DO NOT use "total_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
-  my $total_size = total_size($_[0]);
+  my $total_size = size($_[0]);
   my ($type,$blessed) = _type($_[0]);
  
   my $adr = _addr($_[0],$type);
@@ -449,11 +466,12 @@ sub _track_size
     return;
     }
 
+  my $index = scalar @sizes + 2;		# idx of "total_size" entry
+
   if ($type eq 'ARRAY')
     {
-    push @sizes, ($level, S_ARRAY, $total_size, 0, undef, $adr, $blessed);
+    push @sizes, $level, S_ARRAY, $total_size + $SIZE_OF_REF, 0, undef, $adr, $blessed;
 
-    my $index = scalar @sizes - 4;
     my $sum = 0;
     for (my $i = 0; $i < scalar @$ref; $i++)
       {
@@ -473,7 +491,7 @@ sub _track_size
 	# keys point to the same scalar and these "shared" scalars have
 	# unfortunately a REFCNT of 1.
 	hv_store (%SEEN, $adr , $UNDEF) if $TRACK_DOUBLES || SvREFCNT($_[0]) > 1;
-	my $size = total_size($ref->[$i]);
+	my $size = size($ref->[$i]);
 	push @sizes, $level+1, S_SCALAR, $size;
 	av_push (@sizes, $ZERO);
 	av_push (@sizes, $UNDEF);
@@ -482,12 +500,12 @@ sub _track_size
         $sum += $size;
         }
       }
-    $sizes[$index] = $total_size - $sum;
+    $sizes[$index] += $sum;
+    $sizes[$index+1] = $sizes[$index] - $sum;
     }
   elsif ($type eq 'HASH')
     {
-    my $index = scalar @sizes;
-    push @sizes, $level, S_HASH, $total_size, 0, undef, $adr, $blessed;
+    push @sizes, $level, S_HASH, $total_size + $SIZE_OF_REF, 0, undef, $adr, $blessed;
 
     my $sum = 0;
     foreach my $elem ( keys %$ref )
@@ -498,7 +516,6 @@ sub _track_size
         my $index = scalar @sizes;
         _track_size($ref->{$elem},$level+1);
 
-	# XX TODO: use elements - X
 	$sizes[$index+1] += SF_KEY;
 	$sizes[$index+4] = $elem;
 	$sum += $sizes[$index+2];
@@ -511,12 +528,13 @@ sub _track_size
 	# keys point to the same scalar and these "shared" scalars have
 	# unfortunately a REFCNT of 1.
         hv_store (%SEEN, $adr , $UNDEF) if $TRACK_DOUBLES || SvREFCNT($_[0]) > 1;
-        my $size = total_size($ref->{$elem});
+        my $size = size($ref->{$elem});
 	push @sizes, $level+1, SF_KEY + S_SCALAR, $size, 0, $elem, $adr, undef;
         $sum += $size;
         }
       }
-    $sizes[$index+3] = $total_size - $sum;
+    $sizes[$index] += $sum;
+    $sizes[$index+1] = $sizes[$index] - $sum;
     }
   elsif ($type eq 'REGEXP')
     {
@@ -528,7 +546,6 @@ sub _track_size
   elsif ($type eq 'REF')
     {
     my $type = uc(reftype(${$_[0]}) || '');
-    my $blessed = blessed (${$_[0]} ) || '';
     $type ='REGEXP' if $blessed eq 'Regexp';
     $type ='SCALAR' if !ref(${$_[0]});
     my $flags = SF_REF;
@@ -536,7 +553,6 @@ sub _track_size
 
     push @sizes, 
      ($level, $flags + type($type), $total_size, 0, undef, $adr, $blessed);
-    my $index = scalar @sizes - 5;
     _track_size($$ref,$level+1);
     $sizes[$index] += $SIZE_OF_REF;			# account for wrong \"" sizes
     $sizes[$index+1] = $sizes[$index] - total_size($$ref);
@@ -580,39 +596,38 @@ Devel::Size::Report - generate a size report for all elements in a structure
 
 =head1 SYNOPSIS
 
-	use Devel::Size::Report qw/report_size/;
+        use Devel::Size::Report qw/report_size/;
 
-        my $a = [ 8, 9, 7,
-                  [ \"12",
-                    2, 3,
+        my $a = [ \8, \*STDIN, 7,
+                  [ 1, 2, 3,
                     { a => 'b',
                       size => 12.2,
                       h => ['a']
                     },
-                    sub { 42; },
                   'rrr'
-                  ] ];
-	print report_size($a, { indend => "   " } );
+                  ]
+                ];
+        print report_size($a, { indent => "  " } );
 
 This will print something like this:
 
-	Size report v0.04 for 'ARRAY(0x815a430)':
-	  Array 743 bytes (overhead: 84 bytes, 11.31%)
-	     Scalar 16 bytes
-	     Scalar 16 bytes
-	     Scalar 16 bytes
-	     Array 611 bytes (overhead: 96 bytes, 15.71%)
-	        Scalar reference 27 bytes
-	        Scalar 28 bytes
-	        Scalar 28 bytes
-        	Hash 308 bytes (overhead: 180 bytes, 58.44%)
-	           'h' => Array 82 bytes (overhead: 56 bytes, 68.29%)
-	              Scalar 26 bytes
-	           'a' => Scalar 26 bytes
-        	   'size' => Scalar 20 bytes
-	        Code 92 bytes
-        	Scalar 32 bytes
-	Total: 743 bytes
+	Size report v0.08 for 'ARRAY(0x8145e6c)':
+	  Array 886 bytes (overhead: 100 bytes, 11.29%)
+	    Scalar Ref 32 bytes (overhead: 16 bytes, 50.00%)
+	      Read-Only Scalar 16 bytes
+	    Glob 266 bytes
+	    Scalar 16 bytes
+	    Array 472 bytes (overhead: 88 bytes, 18.64%)
+	      Scalar 16 bytes
+	      Scalar 16 bytes
+	      Scalar 16 bytes
+	      Hash 308 bytes (overhead: 180 bytes, 58.44%)
+	        'h' => Array 82 bytes (overhead: 56 bytes, 68.29%)
+	          Scalar 26 bytes
+	        'a' => Scalar 26 bytes
+	        'size' => Scalar 20 bytes
+	      Scalar 28 bytes
+	Total: 886 bytes in 15 elements
 
 =head1 EXPORTS
 
@@ -667,9 +682,9 @@ optional keys:
 
 	names	  ref to HASH mapping the types to names
 		  This should map S_Scalar to something like "Scalar" etc
-	indend	  string to indend different levels with, default is '  '
-	left	  indend all text with this at the left side, default is ''
-	inner	  indend inner text with this at the left side, default is '  '
+	indent	  string to indent different levels with, default is '  '
+	left	  indent all text with this at the left side, default is ''
+	inner	  indent inner text with this at the left side, default is '  '
 	total	  if true, a total size will be printed as last line
 	bytes	  name of the size unit, defaults to 'bytes'
 	head	  header string, default 'Size report for'
@@ -706,7 +721,7 @@ pointed to by C<$reference>. C<$reference> can also be a plain scalar.
 
 The entries for each element are currently:
 
-	level	  the indend level
+	level	  the indent level
 	type	  the type of the element, S_SCALAR, S_HASH, S_ARRAY etc
 		  if (type & SF_KEY) != 0, the element is a member of a hash
 	size	  size in bytes of the element
@@ -766,10 +781,17 @@ different from a first report without a header.
 
 =head1 BUGS 
 
-Apart from some problems with Devel::Size, none known so far.
+=over 4
+
+=item threads
+
+The results are currently stored in a global package var, so this is probably
+not threadsafe.
+
+=back
 
 =head1 AUTHOR
 
-(c) 2004,2005 by Tels http://bloodgate.com
+(c) 2004, 2005 by Tels http://bloodgate.com
 
 =cut

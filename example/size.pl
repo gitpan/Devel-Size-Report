@@ -34,25 +34,25 @@ my $x = \"a scalar"; weaken($x);
 print report_size( $x, {  } ), "\n";
 
 # these tw0 are actually different in size as Devel::Peek shows:
-my $a = [ 1,2 ];
+$a = [ 1,2 ];
 print report_size( $a ), "\n";
 my @a = (1,2);
 print report_size( \@a ), "\n";
 
 print report_size( sub { 3 < 5 ? 1 : 0; print "123"; 3; }), "\n";
-my $a = 1; my $code = sub { $a < 5 ? 1 : 0; print "123"; 3; };
+$a = 1; my $code = sub { $a < 5 ? 1 : 0; print "123"; 3; };
 
 print report_size( $code, { total => '' } ), "\n";
 
-my $x = [ 8 ]; my $y = [ $x, [ 1, $x ] ];
+$x = [ 8 ]; my $y = [ $x, [ 1, $x ] ];
 print report_size( $y ), "\n";
 
-my $x = [ 8 ]; my $y = [ $x, [ 1, \8 ] ];
+$x = [ 8 ]; $y = [ $x, [ 1, \8 ] ];
 print report_size( $y ), "\n";
 
-my $x = "An LVALUE scalar";
+$x = "An LVALUE scalar";
 print report_size( substr($x, 0, 9) ), "\n";
 
-my $x = v1.2.3;
+$x = v1.2.3;
 print report_size( $x, { head => 'vstring v1.2.3' } ), "\n";
 

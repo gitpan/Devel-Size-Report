@@ -1,17 +1,17 @@
 
 Whats new in this version:
 
-2005-02-27 v0.09 Tels 122 tests
-  * Don't need to track simple scalars with a REFCNT of 1 in the SEEN hash,
-    this reduces the memory overhead quite a bit
-  * add option "track_doubles", that only tracks double/shared hash keys and
-    array elemts if requested. Default is off, this saves memory.
-  * Rewrote _track_size() to modify a global array instead of passing the
-    results back via the stack. This avoids that the entire results array
-    exists temporarily twice when returning the results and speeds up anything
-    by a factor of two to three :o)
-  * add a test for "Glob"
-  * streamline array and hash member tracking (for simple elements)
-  * streamline type()
-  * add track_sizes() and hide_tracks()
+2005-03-04 v0.10 Tels 145 tests
+  * amend README, SYNOPSIS, example/size.pl
+  * psize: support for option "d", print help if no arguments are given
+  * indend => indent (Thanx Jim Cromie!)
+  * sizes for array/hash refs were missing the ref itself (16 bytes on 32 bit
+    systems, more on 64 bit). This also makes "[]" and "[ 1, [] ]" report
+    consistent sizes for the inner array.
+  * compute correct size for circular references
+  * rewrote the size-gathering code to use size() instead of total_size(),
+    this makes it much faster, especially for deep structures and ones with
+    cycles
+  * track_size() and track_sizes() also need to honor option "doubles"
+  * does no longer warn about "deep recursion"
 

@@ -1,10 +1,10 @@
 --- #YAML:1.0
 name: Devel-Size-Report
-version: 0.09
+version: 0.10
 version_from: lib/Devel/Size/Report.pm
 license: perl
 distribution_type: module
-generated_by: Devel-Size-Report version 0.09
+generated_by: Devel-Size-Report version 0.10
 installdirs: site
 requires:
   Array::RefElem: 1

@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 38;
+  plan tests => 44;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -29,6 +29,7 @@ my $elems = [ $x,$y,$z ];
 my $nr = 123;
 my $ref = \"1234";
 my $vstring = v1.2.3;
+my $ref_vstring = \v1.2.3;
 
 my @size;
 
@@ -111,6 +112,14 @@ $A = report_size( $vstring, { head => '' } );
 like ($A, qr/VString /, 'VString');
 unlike ($A, qr/Read-Only VString /, 'no RO VString');
 
+# reference to a vstring
+
+$A = report_size( $ref_vstring, { head => '' } );
+
+like ($A, qr/VString /, 'VString');
+like ($A, qr/Scalar Ref /, 'Ref');
+like ($A, qr/Read-Only VString /, 'RO VString');
+
 #############################################################################
 # HASH 
 
@@ -144,14 +153,14 @@ unlike ($A, qr/Weak.*Scalar [^R]/i, 'RO Scalar');
 
 $A = report_size( \ [ 8, 9 ], { head => '' } );
 
-like ($A, qr/Array Ref/, 'Array ref');
+like ($A, qr/Array ref Ref/, 'Array ref');
 
 #############################################################################
 # HASH references
 
 $A = report_size( \ { a => 89 }, { head => '' } );
 
-like ($A, qr/Hash Ref/, 'Hash ref');
+like ($A, qr/Hash ref Ref/, 'Hash ref');
 
 #############################################################################
 # CODE 
@@ -161,12 +170,28 @@ my $CODE = report_size( $code, { head => '' } );
 
 like ($CODE, qr/Code /, 'Contains code');
 
+$CODE = report_size ( \&{'foo'}, { head => '' } );
+like ($CODE, qr/Code /, 'Contains code');
+
+#############################################################################
+# STASH
+
+$CODE = report_size ( \%::Devel::Size::Report::, { head => '' } );
+
+like ($CODE, qr/report_size/, 'Contains report_size');
+
 #############################################################################
 # REGEXP
 
 $A = report_size( qr/^(foo|bar)$/, { head => '' } );
 
 like ($A, qr/Regexp/, 'Contains a regexp');
+
+# COMMAND
+
+$A = report_size( qx/echo/, { head => '' } );
+
+like ($A, qr/Scalar/, 'Contains a scalar');
 
 #############################################################################
 # LVALUE

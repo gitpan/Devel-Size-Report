@@ -36,7 +36,7 @@ like ($Z, qr/Total: \d+ bytes/, 'report contains total sum');
 
 $Z = report_size( { foo => $x, bar => $y }, { addr => 1, } );
 
-like ($Z, qr/Hash\(0x[\da-fA-F]+\) /, 'report contains address');
+like ($Z, qr/Hash ref\(0x[\da-fA-F]+\) /, 'report contains address');
 
 #############################################################################
 # multiple addresses, especially in sub-arrays and hash keys
@@ -64,14 +64,14 @@ like ($A, qr/\(0x[a-fA-F0-9]+\)/, 'Contains addr');
 $x = { foo => 0 }; bless $x, 'Foo';
 
 $A = report_size( $x, { head => '', class => 1} );
-like ( $A, qr/Hash \(Foo\)/, 'Contains (Foo)');
+like ( $A, qr/Hash ref \(Foo\)/, 'Contains (Foo)');
 
 $y = [ bar => $x ]; bless $y, 'Bar';
 
 $A = report_size( $y, { head => '', class => 1} );
 
-like ( $A, qr/Hash \(Foo\)/, 'Contains (Foo)');
-like ( $A, qr/Array \(Bar\)/, 'Contains (Bar)');
+like ( $A, qr/Hash ref \(Foo\)/, 'Contains (Foo)');
+like ( $A, qr/Array ref \(Bar\)/, 'Contains (Bar)');
 
 #############################################################################
 # total with number of elements:

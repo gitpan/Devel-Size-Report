@@ -16,8 +16,8 @@
   can be used to have a $preamble etc?
 
 * [ 1,2] is technically a ref to an array, \[ 1,2 ] is technically a ref to
-  an array ref. Currently, the first is reported as "Array", the second as
-  "Array ref". Is this right?
+  an array ref. Currently, the first is reported as "Array ref", the second as
+  "Array ref Ref". The second case should be different (like "\1").
 
 * $x = 'a scalar'; report_size(substr($x,0,2), {}) prints:
   Size report v0.06 for 'a ':
@@ -48,36 +48,5 @@
       LEN = 9
 
    Surely our report could be better (detect magic?).
-
-* for:
-
-    my $x = [ 8 ]; my $y = [ $x, [ 1, $x ] ]; 
-    print report_size( $y, { total => '' } ), "\n";
-
-  we get:
-
-  Size report v0.06 for 'ARRAY(0x84e3b98)':
-    Array 256 bytes (overhead: 20 bytes, 7.81%)
-      Array 72 bytes (overhead: 56 bytes, 77.78%)
-        Scalar 16 bytes
-      Array 164 bytes (overhead: 132 bytes, 80.49%)
-        Scalar 16 bytes
-        Circular ref 16 bytes
-  Total: 256 bytes
-
-  I think the total_size of the second array is too big. Compare:
-
-    my $x = [ 8 ]; my $y = [ $x, [ 1, \8 ] ]; 
-    print report_size( $y, { total => '' } ), "\n";
-
-  Size report v0.06 for 'ARRAY(0x84e4af0)':
-    Array 272 bytes (overhead: 92 bytes, 33.82%)
-      Array 72 bytes (overhead: 56 bytes, 77.78%)
-        Scalar 16 bytes
-      Array 108 bytes (overhead: 60 bytes, 55.56%)
-        Scalar 16 bytes
-        Scalar Ref 32 bytes (overhead: 16 bytes, 50.00%)
-          Scalar 16 bytes
-  Total: 272 bytes
 
 
