@@ -1,10 +1,76 @@
 
 * let the user make more formatting choices
+
 * document how to wrap your own report_size function
+
 * add a report_size_in_html() function? or make generic "string-hooks" that
   can be used to have a $preamble etc?
+
 * plain scalars do not yet print their address
-* print blessed() argument (aka class) on request
+
 * [ 1,2] is technically a ref to an array, \[ 1,2 ] is technically a ref to
   an array ref. Currently, the first is reported as "Array", the second as
   "Array ref". Is this right?
+
+* $x = 'a scalar'; report_size(substr($x,0,2), {}) prints:
+  Size report v0.06 for 'a ':
+    Scalar 115 bytes
+  Total: 115 bytes
+
+  While Devel::Peek says:
+  SV = PVLV(0x81a9598) at 0x829d568
+    REFCNT = 1
+    FLAGS = (PADMY,GMG,SMG,pPOK)
+    IV = 0
+    NV = 0
+    PV = 0x82b3db0 "a "\0
+    CUR = 2
+    LEN = 3
+    MAGIC = 0x82b4f30
+      MG_VIRTUAL = &PL_vtbl_substr
+      MG_TYPE = PERL_MAGIC_substr(x)
+    TYPE = x
+    TARGOFF = 0
+    TARGLEN = 2
+    TARG = 0x829d520
+    SV = PV(0x82a5018) at 0x829d520
+      REFCNT = 2
+      FLAGS = (PADBUSY,PADMY,POK,pPOK)
+      PV = 0x82b2648 "a scalar"\0
+      CUR = 8
+      LEN = 9
+
+   Surely our report could be better (detect magic?).
+
+* for:
+
+    my $x = [ 8 ]; my $y = [ $x, [ 1, $x ] ]; 
+    print report_size( $y, { total => '' } ), "\n";
+
+  we get:
+
+  Size report v0.06 for 'ARRAY(0x84e3b98)':
+    Array 256 bytes (overhead: 20 bytes, 7.81%)
+      Array 72 bytes (overhead: 56 bytes, 77.78%)
+        Scalar 16 bytes
+      Array 164 bytes (overhead: 132 bytes, 80.49%)
+        Scalar 16 bytes
+        Circular ref 16 bytes
+  Total: 256 bytes
+
+  I think the total_size of the second array is too big. Compare:
+
+    my $x = [ 8 ]; my $y = [ $x, [ 1, \8 ] ]; 
+    print report_size( $y, { total => '' } ), "\n";
+
+  Size report v0.06 for 'ARRAY(0x84e4af0)':
+    Array 272 bytes (overhead: 92 bytes, 33.82%)
+      Array 72 bytes (overhead: 56 bytes, 77.78%)
+        Scalar 16 bytes
+      Array 108 bytes (overhead: 60 bytes, 55.56%)
+        Scalar 16 bytes
+        Scalar Ref 32 bytes (overhead: 16 bytes, 50.00%)
+          Scalar 16 bytes
+  Total: 272 bytes
+
+

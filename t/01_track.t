@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 24;
+  plan tests => 25;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -40,8 +40,13 @@ my @size;
 @size = track_size ( $x );
 is (scalar @size, entries_per_element(), '1 (1 scalar) elements');
 
-@size = track_size ( \$x );
-is (scalar @size, entries_per_element() * 2, '2 (1 ref, 1 scalar) elements');
+# scalar ref
+my @size_ref = track_size ( \$x );
+is (scalar @size_ref, entries_per_element() * 2, '2 (1 ref, 1 scalar) elements');
+
+# check that a scalar ref is bigger than a scalar
+
+is ($size[2] < $size_ref[2], 1, 'ref to scalar is bigger than scalar alone');
 
 # array ref
 @size = track_size ( $elems );

@@ -1,5 +1,5 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.36.
+signed via the Module::Signature module, version 0.41.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
@@ -14,32 +14,31 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 
 SHA1 bc914dfc89dfc8f7ce25642961aa1208fe6d6e7b BUGS
-SHA1 d3b9b4a7fccc1e365a9be8ef416cef05d265ea5a CHANGES
+SHA1 e6ea348f84017b2f1fa4133b527fa54212f7f93e CHANGES
 SHA1 d6a6c30ee6d9ba6b9afab8bbf6a25e1b23c744e0 LICENSE
 SHA1 2f8ab97953d1bed8dd5f923f2a833041b00c3d9a MANIFEST
-SHA1 e168df9f28c9d893bb036fc4025732d45565bba0 META.yml
+SHA1 a9cf979cc7219bdd75b8d0411169b97f583cf6db META.yml
 SHA1 7107dd846cdb2954eb39cac6d4ca78ed581fff87 Makefile.PL
 SHA1 4d066adc9e6b65a1f997265147d222971ec4e290 NEW
 SHA1 116d3941990ade15cb1a8539a9f489ceb00638fa README
-SHA1 8be8469791dd49d63fe3e3cd0ed0e839b198d4eb TODO
+SHA1 8d96802fc5f2e05f31e87d09819063b86c55a060 TODO
 SHA1 0dbe5364f74a5909cfe2b7a6e992cc28b7811cc6 example/psize
-SHA1 1042e80396c83c99d04f87ee1c47bbd4e36b03f1 example/size.pl
-SHA1 377f5ac3bd3865e3b6ba78ef0db4dcaf158af6d6 lib/Devel/Size/Report.pm
+SHA1 aff78e89db6ebe3ad95f38070ab0644961021845 example/size.pl
+SHA1 214333f34c40d61ed9e8123a124661d7b0dc5093 lib/Devel/Size/Report.pm
 SHA1 cbd61d3e2c679c12aaefd33714bf46d251dcd81a t/00_basic.t
-SHA1 eaf69e31f126d0b6f70c28b22673544da053f8dc t/01_track.t
-SHA1 b1555992d0b096741eea1d681c21ef407720ae42 t/02_report.t
+SHA1 4dfba1117061b4287f78a275ef04e006162635c6 t/01_track.t
+SHA1 3bf02471fcd63113ede7f92dbfd696206cd6fe9f t/02_report.t
 SHA1 228ea6d3db9c6f7d78180676b68fb0fa87bca53e t/03_format.t
 SHA1 d0ab2fe6890952b661fca185cd623eb6736a47c3 t/04_cycle.t
 SHA1 fc076d4d634506fd38fdd40618c1ebc0bfa052c6 t/05_address.t
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2-rc1-SuSE (GNU/Linux)
-Comment: When cryptography is outlawed, bayl bhgynjf jvyy unir cevinpl.
+Version: GnuPG v1.2.4 (GNU/Linux)
 
-iQEVAwUBQARIZHcLPEOTuEwVAQFfsAf+LWzN4MtO0Qir0pMmM6GK6ksL2kiMXeRt
-YBBMFm/G7L1rT+Fdgf5AYeOWLfhtBnFewwqPPXltx2oDYRQ+hY9pIxyvSHyX66+2
-yQ0209DKKlvuO7lQ9HFn6wireImqRWEB4/E6c23Ri7KFsMKnqq9zbHpPLTXltORA
-CnG+ORAJoQkxdAkm+uyPNnzvm5479Ib1XeJj+LiiJupuuZBj5FJEHyCOCH4yzald
-R941daLQyQt9aFKuDzt3sH2omWTXoYuXT/49p/OobsTvEUutd2spIPyGkIgNBfWC
-qi7duoBEclHQpnXQumB81MTqPhK6Xj3onNwTvQiw53SccA/pPLOi8g==
-=LP4T
+iQEVAwUBQXQQ6ncLPEOTuEwVAQGhJAf9EAwVGtK/SO01uBpxrwDTUaAU6yQAL1RZ
+5beCd3D99vXxr/W5axQOFMiwaULigle5YyT6fsAFbXr6dxFUVtQj0/HcXM/0xro7
+AdQVOK23gtyu9Jox/6iPymBYUGqYQ1Hojsbq67euHO03o1XwMug5WAyES7M96zIw
+zjlQeY0I/VRhj3/nV+oKg/rdnnnY35YBc6pTBgJwvZvrnybQglhkqbbZV1D1gH8y
+yDorA3w/bsfqmkGvkVOsVzRZf5/Hzj9JoUIlOZT6JnH1UsMCud013YPCaqq3ptBB
+2xJ5IZr8LOJNWI+zkB5SunXKH/7jxzuwKHjjfwBVCp4ZVlzWOjQTtQ==
+=1qwK
 -----END PGP SIGNATURE-----

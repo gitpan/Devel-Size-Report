@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 26;
+  plan tests => 27;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -39,8 +39,8 @@ my $elems = [ $x,$y,$z ];
 my @size;
 
 #############################################################################
-# check that two report with different thingies, but same amount of them are
-# equal 
+# check that two reports with different things, but the same amount of them
+# are equal 
 
 # check that the report does not change the size!
 my $old_size = total_size($x);
@@ -154,16 +154,11 @@ is ($A =~ /Regexp/, 1, 'Contains a regexp');
 #############################################################################
 # LVALUE
 
-# XXX TODO: I have no idea how to create one
+#use Devel::Peek; print Dump(substr($x,0,2));
 
-sub lefty : lvalue {
-  $x;
-  };
+$A = report_size( substr($x,0,2), { } );# head => '', class => '' } );
 
-#use Devel::Peek; print Dump(\&lefty);
-
-$A = report_size( \&lefty, { head => '', class => '' } );
-
-#is ($A =~ /Lvalue/, 1, 'Contains a lvalue');
-#
 #print "$A\n";
+
+is ($A =~ /Scalar/, 1, "Contains 'Scalar'");
+

@@ -11,15 +11,20 @@ require Exporter;
   /;
 
 use strict;
+use vars qw/$VERSION $SIZE_OF_REF/;
 
-use vars qw/$VERSION/;
-
-$VERSION = '0.05';
+$VERSION = '0.06';
 
 BEGIN
   {
   # disable any warnings Devel::Size might spill
   $Devel::Size::warn = 0;
+
+  # Devel::Size will get the size wrong for \$a, so we use it to compute
+  # the size for \\0 and \0 and infer the overhead for a reference from that
+  # Thanx to SADAHIRO Tomoyuki.
+
+  $SIZE_OF_REF = total_size(\\0) - total_size(\0);
   }
 
 # for cycles in memory
@@ -176,6 +181,7 @@ sub track_size
 
 sub _addr
   {
+  # return address of an element as string
   my $adr;
   if (ref($_[0]) && $_[1] ne 'REF')
     {
@@ -191,6 +197,7 @@ sub _addr
 
 sub _type
   {
+  # find the type of an element and return as string
   my $type = uc(reftype($_[0]) || '');
   my $class = blessed($_[0]) || '';
 
@@ -211,7 +218,7 @@ sub _track_size
 
   $level ||= 0;
 
-  # DONT do total_size($ref) because $ref is a copy of $_[0], reusing some
+  # DO NOT use "total_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
   my $total_size = total_size($_[0]);
   my $type = _type($_[0]);
@@ -292,6 +299,7 @@ sub _track_size
     my @r = 
      ($level, S_REF + type($type), $total_size, 0, undef, $adr, $blessed);
     push @r, _track_size($$ref,$level+1);
+    $r[2] += $SIZE_OF_REF;			# account for wrong \"" sizes
     $r[3] = $r[2] - total_size($$ref);
     push @res, @r;
     }
