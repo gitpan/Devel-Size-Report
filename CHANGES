@@ -47,3 +47,14 @@ Revision history for Devel::Size::Report
   * simplify test code by using like()
   * added 'te' and 's' option to psize
   * added more examples to example/size.pl
+2004-11-10 v0.08 Tels 116 tests (released 2005-02-27)
+  * confess() if options to report_size() is not a hash
+  * option debug: print time and memory used to make stats
+  * streamline element_type()
+  * report_size(): inline element_type() for a tad more speed
+  * use undef instead of '' for unblessed things to save a bit of memory
+  * more tests (element_type, type, options, double ref, cycles)
+  * return blessed() from _type() and use to avoid second call to blessed()
+  * fix bug with double scalars in a hash (f.i. via Array-RefElem)
+  * use Array-RefElem to save about 50% of the %SEEN hash (which represents
+    about 3-6% of the memory when generating reports on huge structures)

@@ -1,12 +1,22 @@
 
+* We need only to track elements with a refcount >1 to detect
+  cycles, that would reduce the size of the %SEEN hash considerable.
+
 * let the user make more formatting choices
+
+* test for debug option
+
+* option to print scalar values like:
+        Scalar 16 bytes ('a')
+        'a' => Scalar 16 bytes ('123')
+        'f' => Scalar 16 bytes ('0.23')
+
+* plain scalars do not yet print their address (make that an option)
 
 * document how to wrap your own report_size function
 
-* add a report_size_in_html() function? or make generic "string-hooks" that
+* add a report_size_in_html() function? Or make generic "string-hooks" that
   can be used to have a $preamble etc?
-
-* plain scalars do not yet print their address
 
 * [ 1,2] is technically a ref to an array, \[ 1,2 ] is technically a ref to
   an array ref. Currently, the first is reported as "Array", the second as

@@ -6,7 +6,7 @@ use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;
 require Exporter;
 @ISA = qw/Exporter/;
 @EXPORT_OK = qw/
-  report_size track_size element_type entries_per_element
+  report_size track_size element_type type entries_per_element
   S_SCALAR
   S_HASH
   S_ARRAY
@@ -30,8 +30,10 @@ require Exporter;
 
 use strict;
 use vars qw/$VERSION $SIZE_OF_REF/;
+use Time::HiRes qw/time/;
+use Array::RefElem qw/hv_store/;
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 BEGIN
   {
@@ -47,6 +49,8 @@ BEGIN
 
 # for cycles in memory
 my %SEEN;
+# scalar that can be entered into %SEEN many times 
+my $UNDEF = undef;
 
 # the different types of elements
 sub S_UNKNOWN () { 0; }
@@ -166,11 +170,18 @@ sub report_size
   # of each element
   my ($ref,$opt) = @_;
   
+  $opt = {} unless defined $opt;
+  if (ref($opt) ne 'HASH')
+    {
+    require Carp;
+    Carp::confess ("report_size() needs a hash ref for options");
+    }  
+
   # DONT do "track_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
 
   # get the size for all elements so that we can generate a report on it
-  my @size = track_size($_[0]);
+  my @size = track_size($_[0],$opt);
 
   my $text = '';
  
@@ -209,7 +220,9 @@ sub report_size
 
   for (my $i = 0; $i < @size; $i += $e)
     {
-    my $type = element_type( ($size[$i+1] & 0xFF),$names);
+    # inline element_type for speed:
+    # my $type = element_type( ($size[$i+1] & 0xFF),$names);
+    my $type = $names->{ ($size[$i+1] & 0xFF) } || 'Unknown';
 
     if ($show_summary)
       {
@@ -291,8 +304,7 @@ sub element_type
   {
   my ($type,$TYPE) = @_;
 
-  return 'Unknown' unless exists $TYPE->{$type};
-  $TYPE->{$type};
+  $TYPE->{$type} || 'Unknown';
   }
 
 sub type
@@ -300,14 +312,26 @@ sub type
   # map a typename to a type number
   my ($type) = @_;
 
-  return S_UNKNOWN unless exists $NAME_MAP->{$type};
-  $NAME_MAP->{$type};
+  $NAME_MAP->{$type} || S_UNKNOWN;
   }
 
 sub track_size
   {
+  my $opt = $_[1];
+
+  my $time = time();
   undef %SEEN;		# reset cycle memory
-  my @sizes = _track_size(@_);
+  # use $_[0] directly to avoid slot-reusing
+  my @sizes = _track_size($_[0]);
+
+  if ($opt->{debug})
+    {
+    $time = time() - $time; 
+    print STDERR " DEBUG: Devel::Size::Report v$VERSION\n";
+    print STDERR " DEBUG: \%SEEN : ", _right_align(total_size(\%SEEN),12), " bytes, ", scalar keys %SEEN, " elements\n";
+    print STDERR " DEBUG: \@sizes: ", _right_align(total_size(\@sizes),12), " bytes, ", scalar @sizes, " elements\n";
+    print STDERR " DEBUG: took ", sprintf("%0.2f",$time), " seconds to gather data for report.\n";
+    }
   undef %SEEN;		# save memory, throw away
   @sizes;
   }
@@ -332,15 +356,15 @@ sub _type
   {
   # find the type of an element and return as string
   my $type = uc(reftype($_[0]) || '');
-  my $class = blessed($_[0]) || '';
+  my $class = blessed($_[0]);
 
   # blessed "Regexp" and ref to scalar?
-  $type ='REGEXP' if $class eq 'Regexp';
+  $type ='REGEXP' if $class && $class eq 'Regexp';
 
   # refs to scalars are tricky
   $type ='REF' 
     if ref($_[0]) && UNIVERSAL::isa($_[0],'SCALAR') && $type ne 'REGEXP';
-  $type;
+  ($type,$class);
   }
 
 sub _track_size
@@ -354,25 +378,24 @@ sub _track_size
   # DO NOT use "total_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
   my $total_size = total_size($_[0]);
-  my $type = _type($_[0]);
-  my $blessed = blessed($_[0]) || '';
+  my ($type,$blessed) = _type($_[0]);
  
   my $adr = _addr($_[0],$type);
 
   if (exists $SEEN{$adr})
     {
     # already seen this part of the world, so return
-    # XXX TODO: how big is just the reference?
     if (ref($ref))
       {
-      return ($level, S_CYCLE, size(\\1), 0, undef, $adr, $blessed);
+      return ($level, S_CYCLE, $SIZE_OF_REF, 0, undef, $adr, $blessed);
       }
     # a scalar seen twice
     return ($level, S_DOUBLE, 0, 0, undef, $adr, '');
     }
 
   # put in the address of $ref in the %SEEN hash
-  $SEEN{$adr}++;
+  #$SEEN{$adr} = undef;
+  hv_store (%SEEN, $adr , $UNDEF);
 
   # not a reference, but a plain scalar?
   if (!ref($ref))
@@ -403,7 +426,7 @@ sub _track_size
     foreach my $elem ( keys %$ref )
       {
       my $adr = _addr($ref->{$elem}, _type($ref->{$elem}));
-      if (ref($ref->{$elem}))
+      if (exists $SEEN{$adr} || ref($ref->{$elem}))
         {
         my @rs = _track_size($ref->{$elem},$level+1);
         $rs[1] += SF_KEY;
@@ -415,6 +438,9 @@ sub _track_size
         }
       else
         {
+        # put in the address of $ref in the %SEEN hash
+        hv_store (%SEEN, $adr , $UNDEF);
+        #$SEEN{$adr} = undef;
         my $size = total_size($ref->{$elem});
         push @r, $level+1, SF_KEY + S_SCALAR, $size, 0, $elem, $adr, '';
         $sum += $size;

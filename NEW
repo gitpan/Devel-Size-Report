@@ -1,48 +1,15 @@
 
 Whats new in this version:
 
-2004-01-13 v0.07 Tels 100 tests
-  * rename S_KEY and S_REF to SF_KEY and SF_REF
-  * document exportable methods
-  * small comments added
-  * The "Total" line now includes the number of elements
-  * added options 'terse' (supresss gory details) and 'summary' (include
-    per-class overview at end of report) to report_size()
-  * added S_VSTRING
-  * added SF_WEAK, SF_RO, SF_DUAL
-  * simplify test code by using like()
-
-#############################################################################
-# A few sample reports:
-
-# psize 'v1.2.3'
-
-Size report v0.07 for 'v1.2.3' => '':
-  VString 72 bytes
-Total: 72 bytes in 1 elements
-
-# psize '\v1.2.3'
-
-Size report v0.07 for '\v1.2.3' => 'SCALAR(0x8160684)':
-  Scalar Ref 90 bytes (overhead: 16 bytes, 17.78%)
-    Read-Only VString 74 bytes
-Total: 90 bytes in 2 elements
-
-# psize '\v1.2.3' 'te => 1'
-
-Size report v0.07 for '\v1.2.3' => 'SCALAR(0x81606d8)':
-Total: 90 bytes in 2 elements
-
-# psize 'Math::String::Charset->new(["a".."z"])' 'te => 1, s => 1'
-
-Size report v0.07 for 'Math::String::Charset->new(["a".."z"])' => 'Math::String::Charset=HASH(0x83c5098)' (Math::String::Charset):
-Total memory by class (inclusive contained elements):
-        4594 bytes in      1 Math::String::Charset
-        2404 bytes in      2 HASH
-        2061 bytes in    101 SCALAR
-        1510 bytes in      3 ARRAY
-        1305 bytes in      5 Math::BigInt
-         300 bytes in      5 Math::BigInt::GMP
-          16 bytes in      1 CYCLE
-Total: 4594 bytes in 118 elements
+2004-11-10 v0.08 Tels 116 tests
+  * confess() if options to report_size() is not a hash
+  * option debug: print time and memory used to make stats
+  * streamline element_type()
+  * report_size(): inline element_type() for a tad more speed
+  * use undef instead of '' for unblessed things to save a bit of memory
+  * more tests (element_type, type, options, double ref, cycles)
+  * return blessed() from _type() and use to avoid second call to blessed()
+  * fix bug with double scalars in a hash (f.i. via Array-RefElem)
+  * use Array-RefElem to save about 50% of the %SEEN hash (which represents
+    about 3-6% of the memory when generating reports on huge structures)
 

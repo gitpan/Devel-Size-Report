@@ -1,12 +1,12 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.41.
+signed via the Module::Signature module, version 0.42.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
 
     % cpansign -v
 
-It would check each file's integrity, as well as the signature's
+It will check each file's integrity, as well as the signature's
 validity.  If "==> Signature verified OK! <==" is not displayed,
 the distribution may already have been compromised, and you should
 not run its Makefile.PL or Build.PL.
@@ -14,31 +14,33 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 
 SHA1 fbe7b068479d2d2a34b4077159fb94739936ad7d BUGS
-SHA1 fb9a7be04e4377935e228d0ec1aaf84c52703f05 CHANGES
+SHA1 8d81a4c5b83782fa7edc7e96cd7e2a9b0b6063fd CHANGES
 SHA1 d6a6c30ee6d9ba6b9afab8bbf6a25e1b23c744e0 LICENSE
-SHA1 2f8ab97953d1bed8dd5f923f2a833041b00c3d9a MANIFEST
-SHA1 e1dfcd4091e47f2b70f33873c44a7489930bd898 META.yml
-SHA1 7107dd846cdb2954eb39cac6d4ca78ed581fff87 Makefile.PL
-SHA1 1446825c08912480d9828c3d8eac30d8fac64397 NEW
+SHA1 86e58e8e766b1c67e0114efc361f45a692344780 MANIFEST
+SHA1 cdea6d3f26bcc9b9ec187741fde786a350353651 META.yml
+SHA1 0987b63eb7df884e1a43dc298d43db1be05c6502 Makefile.PL
+SHA1 7928807af50a2a0ae6674ebf2e12df9d598c7df6 NEW
 SHA1 116d3941990ade15cb1a8539a9f489ceb00638fa README
-SHA1 8d96802fc5f2e05f31e87d09819063b86c55a060 TODO
+SHA1 a35bd10841b988fe333fef7f5ce502e4f785f345 TODO
 SHA1 fa1c10d6c7e190dc34a68c6cb26230648d1bbacb example/psize
 SHA1 c5bc411d6363339ec1210d1026042ab0df4acec1 example/size.pl
-SHA1 b688d824250fe37414653cab6c81165834a21146 lib/Devel/Size/Report.pm
-SHA1 de9831202f5862dccbb839e7f420c288c0816c52 t/00_basic.t
+SHA1 a4da727bb547819473a627b40c655388ad31cff8 lib/Devel/Size/Report.pm
+SHA1 0de2e1bd6f16c8fbdfc55b995ea858d3d54d3a08 t/00_basic.t
 SHA1 4dfba1117061b4287f78a275ef04e006162635c6 t/01_track.t
 SHA1 01cf4a82dee90c7a45669f9f521d9e841062e6d6 t/02_report.t
 SHA1 c4a9c0f7655f3c52826961f85a7ad3da62d59c2b t/03_format.t
-SHA1 36057c2963a2604890f551c6d25bf9618bd84aeb t/04_cycle.t
+SHA1 896dfbb620f2841af17071b2d651fe2194820c33 t/04_cycle.t
 SHA1 fc076d4d634506fd38fdd40618c1ebc0bfa052c6 t/05_address.t
+SHA1 bab8666b42d7a61df0d3880e4a1c9ea6d166a2bd t/06_error.t
+SHA1 c6eccd2c7e8837dc3a3fb0e5f575a52bd8a8ca5c t/07_double.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.2.4 (GNU/Linux)
 
-iQEVAwUBQXqidHcLPEOTuEwVAQHtyAf+LYHLwynkyBTn2iNRAE/9j8Xyrb7+NSGs
-c0hFc9dr2MeRqrFx2dNGvukJ09uRpImorHYpuT9BL1PgfgRkIH/QCMZDuIO8pPhu
-o2E08lpUg1ZicXjGnLifrB+YIJlnPk3yJ6hR1973wwzsDOXUX+82qoqbuJxaXIFR
-se+tovwRtEXQiTdtqO0wSVuGFI7oC/nEM+Uq/o4MwPzDqcVTG9E/PyH7On3NDkGQ
-ImJlkeQNNwI6gmsictei7VDwCJsQxtHH3jfa0r4Tv/Cgy+iQ53uTB57NtHNp3y53
-GYst8e6DFArivgObPBRftsHRhV/kKGXQnYnRO4hiO/p1jWfgqoT+og==
-=3Bj5
+iQEVAwUBQiG2fHcLPEOTuEwVAQEQ/gf/VH7RAdLgdtjZ8WXdO5xzh+RM6tXLGFQG
+FIiuGnDFqo0TWbndmKUSkr2mKVF7l7Te1xqmS+N3mJKH/j4R71793dJSWpNtxq+G
+Ge5kj6S5ENjExoYN5vWiYh+IR+xvZMFjLM5//wNbXbxxk5bL+Apc7gWzFSavsb1Z
+0I1ty+J0SwdJzF6Gx4v/bFuFCSQR01hqAuHXGTLBEQBU1vboRz/tGGLNrheS1Qeo
+g9rTNJlQdF7VHg86ZIUQRpJOAa1ZIgN4Qzy405o7sgPR9NjhGo1xwLvHpUmJS0YM
+B78bKK17mGwtf45hJLY3vQT0QCRtwI4apz+vbCZW8z6qBupSED/BMg==
+=Yq/z
 -----END PGP SIGNATURE-----

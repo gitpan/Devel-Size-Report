@@ -16,4 +16,6 @@ t/02_report.t
 t/03_format.t
 t/04_cycle.t
 t/05_address.t
-META.yml                                 Module meta-data (added by MakeMaker)
+t/06_error.t
+t/07_double.t		# text shared/double scalars
+META.yml		# Module meta-data (added by MakeMaker)

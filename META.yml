@@ -1,13 +1,15 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Devel-Size-Report
-version:      0.07
+version:      0.08
 version_from: lib/Devel/Size/Report.pm
 installdirs:  site
 requires:
+    Array::RefElem:                1
     Devel::Size:                   0.58
     Scalar::Util:                  1.13
     Test::Simple:                  0.47
+    Time::HiRes:                   1.52
 
 distribution_type: module
 generated_by: ExtUtils::MakeMaker version 6.17

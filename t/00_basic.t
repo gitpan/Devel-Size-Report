@@ -7,7 +7,7 @@ use Scalar::Util qw/weaken/;
 BEGIN
   {
   $| = 1; 
-  plan tests => 8;
+  plan tests => 13;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -15,7 +15,7 @@ BEGIN
   }
 
 can_ok('Devel::Size::Report', qw/
-  report_size track_size element_type entries_per_element
+  report_size track_size type element_type entries_per_element
   S_SCALAR
   S_HASH
   S_ARRAY
@@ -37,7 +37,7 @@ can_ok('Devel::Size::Report', qw/
 
 # check that we can import these names
 Devel::Size::Report->import(qw/
-  report_size track_size element_type entries_per_element
+  report_size track_size element_type type entries_per_element
   S_SCALAR
   S_HASH
   S_ARRAY
@@ -81,5 +81,19 @@ weaken ($x);
 is (Devel::Size::Report::_flags($x), SF_WEAK(), 'weakened ref');
 
 is (Devel::Size::Report::_flags("123"), SF_RO(), 'readonly scalar');
+
+#############################################################################
+# type() and element_type()
+
+my $names = { -12 => 'Unknown', S_SCALAR() => 'Scalar' };
+
+is ( element_type(-123, $names), 'Unknown', 'Unknown element type');
+is ( scalar keys %$names, 2, 'no spurious key added');
+
+is ( element_type(S_SCALAR(), $names), 'Scalar', 'Scalar element type');
+is ( scalar keys %$names, 2, 'no spurious key added');
+
+is ( type('SCALAR'), S_SCALAR(), 'Scalar type');
+
 
 
