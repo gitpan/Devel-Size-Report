@@ -1,0 +1,12 @@
+CHANGES
+MANIFEST
+SIGNATURE
+README
+TODO
+LICENSE
+Makefile.PL
+lib/Devel/Size/Report.pm
+example/size.pl
+example/psize
+t/report.t
+META.yml                                 Module meta-data (added by MakeMaker)

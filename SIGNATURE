@@ -1,0 +1,38 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.36.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It would check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+
+SHA1 d6f1822a142eaf21823bcfb290b243769c80e08d CHANGES
+SHA1 d6a6c30ee6d9ba6b9afab8bbf6a25e1b23c744e0 LICENSE
+SHA1 7237c15c637d12c2cdc42a3c36db4bb7759344c1 MANIFEST
+SHA1 a378f8678be993c75ceb4c429609f34d840d6e8d META.yml
+SHA1 654f3759d0d314fcd9feacb62e33136fa74590df Makefile.PL
+SHA1 116d3941990ade15cb1a8539a9f489ceb00638fa README
+SHA1 10f0d831966befba8cae981d966d8b6e2d0c0b80 TODO
+SHA1 de4357fb3b5e986cbb600d5aa37a14e5c358590d example/psize
+SHA1 1042e80396c83c99d04f87ee1c47bbd4e36b03f1 example/size.pl
+SHA1 07fd6c1e6fbc37aa76be451204411909ed0f1be5 lib/Devel/Size/Report.pm
+SHA1 83d9aa0e9306de8fc6905b9ff58accc6ee9359f6 t/report.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2-rc1-SuSE (GNU/Linux)
+Comment: When cryptography is outlawed, bayl bhgynjf jvyy unir cevinpl.
+
+iQEVAwUBP/7yl3cLPEOTuEwVAQGm8Af7BYeUOADIgzWcbxRiqmKqiQTtvTK/uYuy
+vMURJ8W7LEjeB3xzExnP/SBS2abxu5ghpbDNEE7gaR3bQJ+JtrPoxvEPZgrfiXS1
+JbOklmNMfBvwRdjBqykM1DZLLIu863fgXI6HFTUuOxa3NiNdW+dOLrsU/ronifJP
+KoXL5KqCigBtiefcpTtNHCRmcxA8JBq4xtXwgVsVW23JslaHxiA6cQC08YdLEj7s
+sR+g6E6k96QHXi8oPcQqn7TCet1txPEU6nvv7rdw30+mBw1uJN6vZiG7TlHDq25J
+r+AoiERtcWPLm6LWcCT4GAT2xSrbnkfzRGrdmvw6eaQwfpEzANEZ0g==
+=S7Fo
+-----END PGP SIGNATURE-----

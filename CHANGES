@@ -1,0 +1,10 @@
+Revision history for Devel::Size::Report
+
+2004-01-06 v0.01 Tels 42 tests (not released)
+  * first release with:
+     report_size(), track_size(), element_type(), entries_per_element() 
+2004-01-09 v0.02 Tels 42 tests
+  * fixed bug in calculating overhead with contained hashes
+  * added example/psize
+ 
+
