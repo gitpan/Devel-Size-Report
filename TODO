@@ -1,4 +1,3 @@
 
-* Use Devel::Circular to find and avoid circular references
-* find and fix the Perl/Devel::Size/testsuite bug (see TODO tests)
+* find and fix the Perl/Devel::Size/testsuite bugs (see TODO tests)
 

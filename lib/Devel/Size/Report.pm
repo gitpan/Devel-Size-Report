@@ -2,26 +2,40 @@ package Devel::Size::Report;
 
 use Devel::Size qw(size total_size);
 
-sub S_UNKNOWN () { 0; }
-sub S_SCALAR () { 1; }
-sub S_ARRAY () { 2; }
-sub S_HASH () { 3; }
-sub S_GLOB () { 4; }
-
-sub S_KEY () { 0x100; }
-
-sub entries_per_element { 5; }
-
 require Exporter;
 @ISA = qw/Exporter/;
 @EXPORT_OK = qw/
   report_size track_size element_type entries_per_element
-  S_SCALAR S_HASH S_ARRAY S_KEY S_GLOB S_UNKNOWN
+  S_SCALAR S_HASH S_ARRAY S_KEY S_GLOB S_UNKNOWN S_CODE S_REF S_LVALUE S_REGEXP
   /;
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 use strict;
+
+BEGIN
+  {
+  # disable any warnings Devel::Size might spill
+  $Devel::Size::warn = 0;
+  }
+
+# for cycles in memory
+my %SEEN;
+
+sub S_UNKNOWN () { 0; }
+sub S_CYCLE () { 1; }
+sub S_SCALAR () { 2; }
+sub S_ARRAY () { 3; }
+sub S_HASH () { 4; }
+sub S_GLOB () { 5; }
+sub S_CODE () { 6; }
+sub S_REGEXP () { 7; }
+sub S_LVALUE () { 8; }
+sub S_REF () { 8; }
+
+sub S_KEY () { 0x100; }
+
+sub entries_per_element { 5; }
 
 # default mapping
 my $TYPE = { 
@@ -30,7 +44,12 @@ my $TYPE = {
   S_HASH() => 'Hash', 
   S_GLOB() => 'Glob', 
   S_ARRAY() => 'Array', 
-  S_KEY() => 'Key', 
+  S_CODE() => 'Code', 
+  S_REGEXP() => 'Regexp', 
+  S_LVALUE() => 'Lvalue', 
+  S_CYCLE() => 'Circular reference', 
+  S_REF() => 'Scalar reference', 
+  S_KEY() => '', 
   };
 
 sub report_size
@@ -38,20 +57,30 @@ sub report_size
   # walk the given reference recursively and return text describing the size
   # of each element
   my ($ref,$options) = @_;
-
+  
   my @size = track_size($ref);
 
   my $text = '';
+  
   my $indend = $options->{indend};
   $indend = '  ' if !defined $indend;
+  
   my $names = $options->{names} || $TYPE;
-  my $bytes = $options->{bytes} || 'bytes';
+  
+  my $bytes = $options->{bytes}; $bytes = 'bytes' unless defined $bytes;
+  $bytes = ' ' . $bytes if $bytes ne '';
+  
   my $left = $options->{left}; $left = '' if !defined $left;
+  
   my $inner = $options->{inner}; $inner = '  ' if !defined $inner;
   $inner .= $left;
+  
   my $total = $options->{total}; $total = 1 if !defined $total;
+  
   my $head = $options->{head}; $head = 'Size report for' if !defined $head;
-  $bytes = ' ' . $bytes if $bytes ne '';
+  
+  my $foverhead = $options->{overhead};
+  $foverhead = " (overhead: %i%s, %0.2f%%)" if !defined $foverhead;
 
   my $r = ref($ref); $r = '' if $r =~ /^(ARRAY|SCALAR)$/;
   $r = " ($r)" if $r ne '';
@@ -69,8 +98,11 @@ sub report_size
     $str .= " $size[$i+2]$bytes";
     if ($size[$i+3] != 0)
       {
-      my $overhead = $size[$i+3]; $overhead = 'unknown' if $overhead < 0;
-      $str .= " ($overhead$bytes overhead)";
+      my $overhead = 
+	sprintf($foverhead, $size[$i+3], $bytes, 
+	 100 * $size[$i+3] / $size[$i+2]); 
+      $overhead = ' (overhead: unknown)' if $size[$i+3] < 0;
+      $str .= $overhead;
       }
     $str .= "\n";
     $text .= $inner . ($indend x $size[$i]) . $str;
@@ -89,13 +121,32 @@ sub element_type
 
 sub track_size
   {
+  undef %SEEN;		# reset cycle memory
+  my @sizes = _track_size(@_);
+  undef %SEEN;		# save memory, throw away
+  @sizes;
+  }
+
+sub _track_size
+  {
   # walk the given reference recursively and store the size, type etc of each
   # element
   my ($ref, $level) = @_;
 
   $level ||= 0;
 
-  return ($level, S_SCALAR, total_size($ref), 0, undef) if !ref($ref);
+  # not a reference, but a plain scalar?
+  return ($level, S_SCALAR, total_size($ref), 0, undef) unless ref($ref);
+  
+  if (exists $SEEN{$ref})
+    {
+    # already seen this part of the world, so return
+    # XXX TODO: how big is just the reference?
+    return ($level, S_CYCLE, size(\1), 0, undef);
+    }
+
+  # put in the address of $ref in the %SEEN hash
+  $SEEN{$ref}++;
 
   my @res = ();
   if (UNIVERSAL::isa($ref, 'ARRAY'))
@@ -104,7 +155,7 @@ sub track_size
     my $sum = 0;
     foreach my $elem ( @$ref )
       {
-      my @rs = track_size( $elem, $level+1);
+      my @rs = _track_size( $elem, $level+1);
       $sum += $rs[2];
       push @r, @rs;
       }
@@ -119,7 +170,7 @@ sub track_size
       {
       if (ref($ref->{$elem}))
         {
-        my @rs = track_size($ref->{$elem},$level+1);
+        my @rs = _track_size($ref->{$elem},$level+1);
         $rs[1] += S_KEY;
         $rs[4] = $elem;
         $sum += $rs[2];
@@ -138,6 +189,30 @@ sub track_size
   elsif (UNIVERSAL::isa($ref, 'GLOB'))
     {
     return ($level, S_GLOB, total_size($ref), 0, undef);
+    }
+  elsif (UNIVERSAL::isa($ref, 'CODE'))
+    {
+    return ($level, S_CODE, total_size($ref), 0, undef);
+    }
+  elsif ( UNIVERSAL::isa($ref, 'Regexp') ||
+          UNIVERSAL::isa($ref, 'REGEXP') )
+    {
+    return ($level, S_REGEXP, total_size($ref), 0, undef);
+    }
+  # SCALAR reference must come after Regexp, because these are also SCALAR !?
+  elsif (UNIVERSAL::isa($ref, 'SCALAR'))
+    {
+    # XXX TODO total_size($$ref) == total_size($ref) - shouldn't they be
+    # different?
+    return ($level, S_REF, total_size($ref), 0, undef);
+    }
+  elsif ( ref($ref) =~ /xism/ )
+    {
+    return ($level, S_REGEXP, total_size($ref), 0, undef);
+    }
+  elsif (UNIVERSAL::isa($ref, 'LVALUE'))
+    {
+    return ($level, S_LVALUE, total_size($ref), 0, undef);
     }
   else
     {
@@ -159,35 +234,37 @@ Devel::Size::Report - generate a size report for all elements in a structure
 
 	use Devel::Size::Report qw/report_size/;
 
-	my $a = [ 8, 9, 7, 
-		  [ 1, 2, 3, 
-		    { a => 'b', 
-		      size => 12.2, 
-		      h => ['a'] 
-		    }, 
-		  'rrr' 
-		  ] 
-		];
-	print report_size($a, { indend => "\t" } );
+        my $a = [ 8, 9, 7,
+                  [ \"12",
+                    2, 3,
+                    { a => 'b',
+                      size => 12.2,
+                      h => ['a']
+                    },
+                    sub { 42; },
+                  'rrr'
+                  ] ];
+	print report_size($a, { indend => "   " } );
 
 This will print something like this:
 
-	Size report for 'ARRAY(0x8396d7c)':
-	  Array 655 bytes (84 bytes overhead)
-	        Scalar 16 bytes
-	        Scalar 16 bytes
-	        Scalar 16 bytes
-	        Array 523 bytes (84 bytes overhead)
-	                Scalar 16 bytes
-	                Scalar 16 bytes
-                	Scalar 16 bytes
-        	        Hash 359 bytes (206 bytes overhead)
-	                        Key 'h' => Array 82 bytes (56 bytes overhead)
-                                	Scalar 26 bytes
-                        	Key 'a' => Scalar 26 bytes
-                	        Key 'size' => Scalar 71 bytes
-        	        Scalar 32 bytes
-	Total: 655 bytes
+	Size report for 'ARRAY(0x815a430)':
+	  Array 743 bytes (overhead: 84 bytes, 11.31%)
+	     Scalar 16 bytes
+	     Scalar 16 bytes
+	     Scalar 16 bytes
+	     Array 611 bytes (overhead: 96 bytes, 15.71%)
+	        Scalar reference 27 bytes
+	        Scalar 28 bytes
+	        Scalar 28 bytes
+        	Hash 308 bytes (overhead: 180 bytes, 58.44%)
+	           'h' => Array 82 bytes (overhead: 56 bytes, 68.29%)
+	              Scalar 26 bytes
+	           'a' => Scalar 26 bytes
+        	   'size' => Scalar 20 bytes
+	        Code 92 bytes
+        	Scalar 32 bytes
+	Total: 743 bytes
 
 =head1 DESCRIPTION
 
@@ -210,15 +287,19 @@ Walks the given reference recursively and returns text tree describing
 the size of each element.  C<$options> is a hash, containing the following
 optional keys:
 
-	names	ref to HASH mapping the types to names
-		This should map S_Scalar to something like "Scalar" etc
-	indend	string to indend different levels with, default is '  '
-	left	indend all text with this at the left side, default is ''
-	inner	indend inner text with this at the left side, default is '  '
-	total	if true, a total size will be printed as last line
-	bytes	name of the size unit, defaults to 'bytes'
-	head	header string, default 'Size report for'
-		Set to '' to supress header completely	
+	names	  ref to HASH mapping the types to names
+		  This should map S_Scalar to something like "Scalar" etc
+	indend	  string to indend different levels with, default is '  '
+	left	  indend all text with this at the left side, default is ''
+	inner	  indend inner text with this at the left side, default is '  '
+	total	  if true, a total size will be printed as last line
+	bytes	  name of the size unit, defaults to 'bytes'
+	head	  header string, default 'Size report for'
+		  Set to '' to supress header completely	
+  	overhead  Format string for the overhead, first size in bytes, then
+		  the bytes string (see above) and then the percentage.
+		  The default is:
+		  " (overhead: %i%s, %0.2f%%)" and 
 
 =head2 entries_per_element
 
@@ -252,7 +333,9 @@ C<track_size> calls itself recursively for ARRAY and HASH references.
 
 =item *
 
-The limitations of Devel::Size also apply to this module.
+The limitations of Devel::Size also apply to this module. This means that
+CODE refs and other "obscure" things might show wrong sizes, or unknown
+overhead. In addition, some sizes might be reported wrong.
 
 =item *
 
@@ -269,19 +352,7 @@ from a first report without a header.
 
 =head1 BUGS 
 
-=over 2
-
-=item *
-
-C<track_size> and thus C<print_size> do currently not work with circular
-references.
-
-=item *
-
-Does only know about HASH, ARRAY and SCALAR. This means that tied thingies,
-globs, code references etc might be incomplete or their sizes might be wrong.
-
-=back
+Apart from the problems with Devel::Size, none known so far.
 
 =head1 AUTHOR
 

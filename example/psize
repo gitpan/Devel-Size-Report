@@ -13,4 +13,4 @@ my $eval = $token;
 # make "Foo->new(1)" => "use Foo; Foo->new(1)"
 $eval = "use $1; $token" if $token =~ /^\s*([\w:]+)->/;
 
-print report_size ( eval $eval, { head => "Size report for '$eval' => " } );
+print report_size ( eval $eval, { head => "Size report for '$token' => " } );

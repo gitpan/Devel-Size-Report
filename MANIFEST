@@ -1,9 +1,10 @@
 CHANGES
-MANIFEST
-SIGNATURE
-README
-TODO
 LICENSE
+MANIFEST
+NEW
+README
+SIGNATURE
+TODO
 Makefile.PL
 lib/Devel/Size/Report.pm
 example/size.pl

@@ -1,0 +1,10 @@
+
+Whats new in this version:
+
+v0.03:
+  * psize: don't print out added "use" statements
+  * report_size(): print overhead in %, too (Thanx nadim!)
+  * knows about CODE, REGEXP, LVALUE and Scalar refs and prints them correctly
+  * stop at cyclic references (e.g. don't loop forever)
+  * disable Devel::Size warnings (about incomplete CV etc, thanx nadim!)
+  * drop the "Key " from the output, it is rendundand

@@ -6,5 +6,11 @@ Revision history for Devel::Size::Report
 2004-01-09 v0.02 Tels 42 tests
   * fixed bug in calculating overhead with contained hashes
   * added example/psize
- 
-
+2004-01-10 v0.03 Tels 49 tests
+  * psize: don't print out added "use" statements
+  * report_size(): print overhead in %, too (Thanx nadim!)
+  * knows about CODE, REGEXP, LVALUE and Scalar refs and prints them correctly
+  * stop at cyclic references (e.g. don't loop forever)
+  * disable Devel::Size warnings (about incomplete CV etc, thanx nadim!)
+  * drop the "Key " from the output, it is rendundand (thanx nadim!)
+  * report_size: bytes => '' in $options works correctly now (thanx nadim!)
