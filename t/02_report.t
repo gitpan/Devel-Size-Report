@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 27;
+  plan tests => 37;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -16,25 +16,19 @@ BEGIN
 use Devel::Size::Report qw/
   report_size track_size element_type
   entries_per_element
-  S_SCALAR
-  S_HASH
-  S_ARRAY
-  S_GLOB
-  S_UNKNOWN
-  S_KEY
-  S_LVALUE
-  S_CODE
-  S_REGEXP
-  S_REF
   /;
 
 use Devel::Size qw/size total_size/;
+use Scalar::Util qw/weaken/;
 
 my $x = "A string";
 my $v = "V string";
 my $y = "A longer string";
 my $z = "Some other text";
 my $elems = [ $x,$y,$z ];
+my $nr = 123;
+my $ref = \"1234";
+my $vstring = v1.2.3;
 
 my @size;
 
@@ -96,60 +90,83 @@ my $code = sub { my $x = 129; $x = 12 if $x < 130; };
 #############################################################################
 # SCALAR 
 
-$A = report_size( "1234", { head => '' } );
+$A = report_size( $nr, { head => '' } );
+like ($A, qr/Scalar /, 'Scalar');
+unlike ($A, qr/Read.Only/i, 'Not read only');
 
-is ($A =~ /Scalar /, 1, 'Scalar');
+# read-only
+$A = report_size( "1234", { head => '' } );
+like ($A, qr/Read-Only Scalar /, 'Read-Only Scalar');
+
+#############################################################################
+# VSTRING
+
+$A = report_size( v1.22.3, { head => '' } );
+
+like ($A, qr/VString /, 'VString');
+like ($A, qr/Read-Only VString /, 'RO VString');
+
+$A = report_size( $vstring, { head => '' } );
+
+like ($A, qr/VString /, 'VString');
+unlike ($A, qr/Read-Only VString /, 'no RO VString');
 
 #############################################################################
 # HASH 
 
 $A = report_size( { foo => "1234" }, { head => '' } );
 
-is ($A =~ /Hash /, 1, 'Hash');
-is ($A =~ /'foo' =>/, 1, 'Hash key is present');
+like ($A, qr/Hash /, 'Hash');
+like ($A, qr/'foo' =>/, 'Hash key is present');
 
 #############################################################################
 # ARRAY 
 
 $A = report_size( [ 1, 2 ], { head => '' } );
 
-is ($A =~ /Array /, 1, 'Array');
+like ($A, qr/Array /, 'Array');
 
 #############################################################################
 # SCALAR references
 
 $A = report_size( \"1234", { head => '' } );
+like ($A, qr/Scalar Ref/, 'Scalar ref');
 
-is ($A =~ /Scalar Ref/, 1, 'Scalar ref');
+weaken($ref);
+$A = report_size( $ref, { head => '' } );
+like ($A, qr/Weak Scalar Ref/, 'Weak Scalar ref');
+unlike ($A, qr/Read-Only.*Scalar Ref/i, 'But not RO');
+like ($A, qr/Read-Only Scalar/, 'RO Scalar');
+unlike ($A, qr/Weak.*Scalar [^R]/i, 'RO Scalar');
 
 #############################################################################
 # ARRAY references
 
 $A = report_size( \ [ 8, 9 ], { head => '' } );
 
-is ($A =~ /Array Ref/, 1, 'Array ref');
+like ($A, qr/Array Ref/, 'Array ref');
 
 #############################################################################
 # HASH references
 
 $A = report_size( \ { a => 89 }, { head => '' } );
 
-is ($A =~ /Hash Ref/, 1, 'Hash ref');
+like ($A, qr/Hash Ref/, 'Hash ref');
 
 #############################################################################
 # CODE 
 
-# see if this does something (XXX TODO: Devel::Size spills some error)
+# see if this does something
 my $CODE = report_size( $code, { head => '' } );
 
-is ( $CODE =~ /Code /, 1, 'Contains code');
+like ($CODE, qr/Code /, 'Contains code');
 
 #############################################################################
 # REGEXP
 
 $A = report_size( qr/^(foo|bar)$/, { head => '' } );
 
-is ($A =~ /Regexp/, 1, 'Contains a regexp');
+like ($A, qr/Regexp/, 'Contains a regexp');
 
 #############################################################################
 # LVALUE
@@ -160,5 +177,5 @@ $A = report_size( substr($x,0,2), { } );# head => '', class => '' } );
 
 #print "$A\n";
 
-is ($A =~ /Scalar/, 1, "Contains 'Scalar'");
+like ($A, qr/Scalar/, "Contains 'Scalar'");
 

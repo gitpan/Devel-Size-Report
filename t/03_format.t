@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 10;
+  plan tests => 16;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -16,16 +16,6 @@ BEGIN
 use Devel::Size::Report qw/
   report_size track_size element_type
   entries_per_element
-  S_SCALAR
-  S_HASH
-  S_ARRAY
-  S_GLOB
-  S_UNKNOWN
-  S_KEY
-  S_LVALUE
-  S_CODE
-  S_REGEXP
-  S_REF
   /;
 
 use Devel::Size qw/size total_size/;
@@ -41,12 +31,12 @@ my $A = report_size( qr/^(foo|bar)$/, { head => '', bytes => '' } );
 is ( (scalar $A =~ /bytes/i) || 0, 0, 'No bytes text');
 
 my $Z = report_size( $x );
-is ($Z =~ /v$Devel::Size::Report::VERSION/, 1, 'report contains version');
-is ($Z =~ /Total: \d+ bytes/, 1, 'report contains total sum');
+like ($Z, qr/v$Devel::Size::Report::VERSION/, 'report contains version');
+like ($Z, qr/Total: \d+ bytes/, 'report contains total sum');
 
 $Z = report_size( { foo => $x, bar => $y }, { addr => 1, } );
 
-is ($Z =~ /Hash\(0x[\da-fA-F]+\) /, 1, 'report contains address');
+like ($Z, qr/Hash\(0x[\da-fA-F]+\) /, 'report contains address');
 
 #############################################################################
 # multiple addresses, especially in sub-arrays and hash keys
@@ -66,7 +56,7 @@ is ($cnt, 8, 'report contains 8 addresses');
 
 $A = report_size( qr/^(foo|bar)$/, { head => '', addr => 1} );
 
-is ( $A =~ /\(0x[a-fA-F0-9]+\)/ || 0, 1, 'Contains addr');
+like ($A, qr/\(0x[a-fA-F0-9]+\)/, 'Contains addr');
 
 #############################################################################
 # class names
@@ -74,12 +64,34 @@ is ( $A =~ /\(0x[a-fA-F0-9]+\)/ || 0, 1, 'Contains addr');
 $x = { foo => 0 }; bless $x, 'Foo';
 
 $A = report_size( $x, { head => '', class => 1} );
-is ( $A =~ /Hash \(Foo\)/ || 0, 1, 'Contains (Foo)');
+like ( $A, qr/Hash \(Foo\)/, 'Contains (Foo)');
 
 $y = [ bar => $x ]; bless $y, 'Bar';
 
 $A = report_size( $y, { head => '', class => 1} );
 
-is ( $A =~ /Hash \(Foo\)/ || 0, 1, 'Contains (Foo)');
-is ( $A =~ /Array \(Bar\)/ || 0, 1, 'Contains (Bar)');
+like ( $A, qr/Hash \(Foo\)/, 'Contains (Foo)');
+like ( $A, qr/Array \(Bar\)/, 'Contains (Bar)');
+
+#############################################################################
+# total with number of elements:
+
+like ( $A, qr/Total.*4 elements/, 'Total: 4 elements');
+
+#############################################################################
+# summary
+
+$A = report_size( $y, { summary => 1, head => '', class => 1 } );
+
+like ($A, qr/1.*Foo/, 'one Foo');
+like ($A, qr/1.*Bar/, 'one Bar');
+like ($A, qr/2.*SCALAR/, 'two Scalar');
+
+#############################################################################
+# terse
+
+$A = report_size( $y, { class => 1, terse => 1 } );
+
+unlike ($A, qr/Foo/, "doesn't contain Foo");
+like ($A, qr/Total:.*bytes in 4 elements/, "contains Total");
 

@@ -35,3 +35,15 @@ Revision history for Devel::Size::Report
   * some small cleanups in comments in Report.pm
   * amended TODO
   * scalar references (\0) are now reported with their correct size
+2004-10-23 v0.07 Tels 100 tests
+  * rename S_KEY and S_REF to SF_KEY and SF_REF
+  * document exportable methods
+  * small comments added
+  * The "Total" line now includes the number of elements
+  * added options 'terse' (supresss gory details) and 'summary' (include
+    per-class overview at end of report) to report_size()
+  * added S_VSTRING
+  * added SF_WEAK, SF_RO, SF_DUAL
+  * simplify test code by using like()
+  * added 'te' and 's' option to psize
+  * added more examples to example/size.pl

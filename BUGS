@@ -38,3 +38,6 @@
       'sign' => Scalar 26 bytes
   Total: 517 bytes
 
+* The same for the summary, referencing the same data twice seems to count it
+  twice. However, the summery also has the problem to include all contained
+  objects in the count, too.

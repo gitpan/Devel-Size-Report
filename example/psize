@@ -1,7 +1,9 @@
 #!/usr/bin/perl -w
 
 # Run on a shell like:
-# psize "Math::BigInt->new(123)"
+#   ./psize '[1, 2, { a => "foo" }'
+# or:
+#   ./psize 'Math::BigInt->new(123)' 't => "Total"'
 
 use strict;
 use Devel::Size::Report qw/report_size/;
@@ -20,20 +22,16 @@ my $map = {
   i => 'indend',
   l => 'left',
   h => 'head',
+  s => 'summary',
+  te => 'terse',
   };
 
 # map 'a' => 'addr'
 my $opt = {};
 foreach my $key ( keys %$options )
   {
-  if (length($key) != 1)
-    {
-    $opt->{$key} = $options->{$key};
-    }
-  else
-    {
-    $opt->{$map->{$key}} = $options->{$key};
-    }
+  my $m = $key; $m = $map->{$key} if exists $map->{$key};
+  $opt->{$m} = $options->{$key};
   }
 
 $opt->{head} =

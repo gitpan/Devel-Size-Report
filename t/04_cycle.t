@@ -16,16 +16,6 @@ BEGIN
 use Devel::Size::Report qw/
   report_size track_size element_type
   entries_per_element
-  S_SCALAR
-  S_HASH
-  S_ARRAY
-  S_GLOB
-  S_UNKNOWN
-  S_KEY
-  S_LVALUE
-  S_CODE
-  S_REGEXP
-  S_REF
   /;
 
 use Devel::Size qw/size total_size/;

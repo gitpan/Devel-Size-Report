@@ -1,19 +1,37 @@
 package Devel::Size::Report;
 
 use Devel::Size qw(size total_size);
-use Scalar::Util qw/reftype refaddr blessed/;
+use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;
 
 require Exporter;
 @ISA = qw/Exporter/;
 @EXPORT_OK = qw/
   report_size track_size element_type entries_per_element
-  S_SCALAR S_HASH S_ARRAY S_KEY S_GLOB S_UNKNOWN S_CODE S_REF S_LVALUE S_REGEXP
+  S_SCALAR
+  S_HASH
+  S_ARRAY
+  S_GLOB
+  S_UNKNOWN
+  S_CODE
+  S_LVALUE
+  S_REGEXP
+  S_CYCLE
+  S_DOUBLE
+  S_VSTRING
+  
+  SF_WEAK
+  SF_KEY
+  SF_REF
+  SF_WEAK
+  SF_RO
+  SF_DUAL
+
   /;
 
 use strict;
 use vars qw/$VERSION $SIZE_OF_REF/;
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 BEGIN
   {
@@ -30,6 +48,7 @@ BEGIN
 # for cycles in memory
 my %SEEN;
 
+# the different types of elements
 sub S_UNKNOWN () { 0; }
 sub S_CYCLE () { 1; }
 sub S_SCALAR () { 2; }
@@ -40,13 +59,19 @@ sub S_CODE () { 6; }
 sub S_REGEXP () { 7; }
 sub S_LVALUE () { 8; }
 sub S_DOUBLE () { 9; }
+sub S_VSTRING () { 10; }
 
-sub S_KEY () { 0x100; }
-sub S_REF () { 0x200; }
+# some flags (to be added to the types)
+sub SF_KEY     () { 0x0100; }
+sub SF_REF     () { 0x0200; }
+sub SF_BLESS   () { 0x0400; }
+sub SF_WEAK    () { 0x0800; }
+sub SF_RO      () { 0x1000; }
+sub SF_DUAL    () { 0x2000; }
 
 sub entries_per_element () { 7; }
 
-# default mapping
+# default mapping for type output names (human readable)
 my $TYPE = { 
   S_SCALAR() => 'Scalar', 
   S_UNKNOWN() => 'Unknown', 
@@ -58,8 +83,29 @@ my $TYPE = {
   S_LVALUE() => 'Lvalue', 
   S_CYCLE() => 'Circular ref', 
   S_DOUBLE() => 'Double scalar ref', 
-  S_REF() => 'Ref', 
-  S_KEY() => '', 
+  S_VSTRING() => 'VString',
+
+  SF_REF() => 'Ref', 
+  SF_BLESS() => 'Blessed', 
+  SF_WEAK() => 'Weak', 
+  SF_RO() => 'Read-Only', 
+  SF_DUAL() => 'Dual-Var', 
+  SF_KEY() => '', 
+  };
+
+# default mapping for type name (internal comparisation)
+my $TYPE_CLASS = { 
+  S_SCALAR() => 'SCALAR', 
+  S_UNKNOWN() => 'UNKNOWN', 
+  S_HASH() => 'HASH', 
+  S_GLOB() => 'GLOB', 
+  S_ARRAY() => 'ARRAY', 
+  S_CODE() => 'CODE', 
+  S_REGEXP() => 'REGEXP', 
+  S_LVALUE() => 'LVALUE', 
+  S_CYCLE() => 'CYCLE', 
+  S_DOUBLE() => 'DOUBLE', 
+  S_VSTRING() => 'VSTRING', 
   };
 
 # map 'SCALAR' => S_SCALAR
@@ -73,85 +119,172 @@ my $NAME_MAP = {
   LVALUE => S_LVALUE(),
   CYCLE => S_CYCLE(),
   DOUBLE => S_DOUBLE(),
-  REF => S_REF(),
-  KEY => S_KEY(),
+  VSTRING => S_VSTRING(),
+
+  REF => SF_REF(),
+  KEY => SF_KEY(),
+  WEAK => SF_WEAK(),
+  DUAL => SF_DUAL(),
+  RO => SF_RO(),
   };
+
+sub _default_options
+  {
+  # set the options to their default values
+  my ($options) = @_;
+
+  my $o = {};
+  for my $k (keys %$options) { $o->{$k} = $options->{$k}; }
+  
+  $o->{indend} = '  ' if !defined $o->{indend};
+  $o->{names} ||= $TYPE;
+
+  $o->{bytes} = 'bytes' unless defined $o->{bytes};
+  $o->{bytes} = ' ' . $o->{bytes} if $o->{bytes} ne '';
+
+  $o->{left} = '' if !defined $o->{left};
+  $o->{inner} = '  ' if !defined $o->{inner};
+  
+  $o->{total} = 1 if !defined $o->{total};
+
+  $o->{head} = "Size report v$Devel::Size::Report::VERSION for" if !defined $o->{head};
+
+  $o->{overhead} = " (overhead: %i%s, %0.2f%%)" if !defined $o->{overhead};
+
+  # binary flags
+  for my $k (qw/addr terse class/)
+    {
+    $o->{$k} ||= 0;
+    }
+
+  $o; 
+  }
 
 sub report_size
   {
   # walk the given reference recursively and return text describing the size
   # of each element
-  my ($ref,$options) = @_;
+  my ($ref,$opt) = @_;
   
-  # DONT do track_size($ref) because $ref is a copy of $_[0], reusing some
+  # DONT do "track_size($ref)" because $ref is a copy of $_[0], reusing some
   # pre-allocated slot and this can have a different total size than $_[0]!!
+
+  # get the size for all elements so that we can generate a report on it
   my @size = track_size($_[0]);
 
   my $text = '';
-  
+ 
+  my $options = _default_options($opt);
+ 
   my $indend = $options->{indend};
-  $indend = '  ' if !defined $indend;
-  
-  my $names = $options->{names} || $TYPE;
-  
-  my $bytes = $options->{bytes}; $bytes = 'bytes' unless defined $bytes;
-  $bytes = ' ' . $bytes if $bytes ne '';
-  
-  my $left = $options->{left}; $left = '' if !defined $left;
-  
-  my $inner = $options->{inner}; $inner = '  ' if !defined $inner;
+  my $names = $options->{names};
+  my $bytes = $options->{bytes};
+  my $left = $options->{left}; 
+  my $inner = $options->{inner};
   $inner .= $left;
   
-  my $total = $options->{total}; $total = 1 if !defined $total;
-  
+  my $total = $options->{total};
   my $head = $options->{head}; 
-  $head = "Size report v$Devel::Size::Report::VERSION for" if !defined $head;
-  
+  my $terse = $options->{terse}; 
+  # show summary?
+  my $show_summary = $options->{summary};
+
   my $foverhead = $options->{overhead};
-  $foverhead = " (overhead: %i%s, %0.2f%%)" if !defined $foverhead;
   
   # show class?
-  my $class = $options->{class} || 0;
+  my $class = $options->{class};
   
   # show addr?
-  my $addr = $options->{addr} || 0;
+  my $addr = $options->{addr};
 
+  my $count = {};		# per class/element type counter
+  my $sum = {};			# per class/element memory sum
+
+  # XXX TODO: why not HASH here?
   my $r = ref($ref); $r = '' if $r =~ /^(ARRAY|SCALAR)$/;
   $r = " ($r)" if $r ne '';
   $text = "$left$head '$ref'$r:\n" if $head ne '';
+
   my $e = entries_per_element();
+
   for (my $i = 0; $i < @size; $i += $e)
     {
     my $type = element_type( ($size[$i+1] & 0xFF),$names);
-    if ( ($size[$i+1] & S_REF) != 0)
+
+    if ($show_summary)
       {
-      $type .= " " . element_type(S_REF, $names);
+      my $t = $size[$i+1] & 0xFF; $t = $TYPE_CLASS->{$t};
+      $t = $size[$i+6] if $size[$i+6];
+      if ($t) 
+        {
+        $count->{$t} ++;
+        $sum->{$t} += $size[$i+2];
+        }
+      # else { should not happen }
       }
 
-    # add addr of element if wanted
-    $type .= "(" . $size[$i+5] . ")" if $addr && $size[$i+5];
-
-    # add class of element if wanted
-    $type .= " (" . $size[$i+6] . ")" if $class && $size[$i+6];
-
-    my $str = $type;
-    if ( ($size[$i+1] & S_KEY) != 0)
+    if (!$terse)
       {
-      $str = "'$size[$i+4]' => " . $type;
+      # include flags
+      for my $flag (SF_WEAK, SF_RO, SF_DUAL)
+        {
+        if ( ($size[$i+1] & $flag) != 0)
+          {
+          $type = element_type($flag, $names) . ' ' . $type;
+          }
+        }
+      if ( ($size[$i+1] & SF_REF) != 0)
+        {
+        $type .= " " . element_type(SF_REF, $names);
+        }
+
+      # add addr of element if wanted
+      $type .= "(" . $size[$i+5] . ")" if $addr && $size[$i+5];
+
+      # add class of element if wanted
+      $type .= " (" . $size[$i+6] . ")" if $class && $size[$i+6];
+
+      my $str = $type;
+      if ( ($size[$i+1] & SF_KEY) != 0)
+        {
+        $str = "'$size[$i+4]' => " . $type;
+        }
+      $str .= " $size[$i+2]$bytes";
+      if ($size[$i+3] != 0)
+        {
+        my $overhead = 
+	  sprintf($foverhead, $size[$i+3], $bytes, 
+	   100 * $size[$i+3] / $size[$i+2]); 
+          $overhead = ' (overhead: unknown)' if $size[$i+3] < 0;
+        $str .= $overhead;
+        }
+      $text .= $inner . ($indend x $size[$i]) . "$str\n";
       }
-    $str .= " $size[$i+2]$bytes";
-    if ($size[$i+3] != 0)
+    } 
+
+  if ($show_summary)
+    {
+    # default sort is by size
+    my $sort = sub { $sum->{$b} <=> $sum->{$a} };
+
+    $text .= "Total memory by class (inclusive contained elements):\n";
+    foreach my $k (sort $sort keys %$count)
       {
-      my $overhead = 
-	sprintf($foverhead, $size[$i+3], $bytes, 
-	 100 * $size[$i+3] / $size[$i+2]); 
-      $overhead = ' (overhead: unknown)' if $size[$i+3] < 0;
-      $str .= $overhead;
+      $text .= $indend . _right_align($sum->{$k},10) . " bytes in " . _right_align($count->{$k},6) . " $k\n";
       }
-    $text .= $inner . ($indend x $size[$i]) . "$str\n";
     }
-  $text .= $left . "Total: $size[2]$bytes\n" if $total;
+  my $elements = scalar @size / $e;
+  $text .= $left . "Total: $size[2]$bytes in $elements elements\n" if $total;
+
   $text;
+  }
+
+sub _right_align
+  {
+  my ($txt,$len) = @_;
+
+  $txt = ' ' . $txt while (length($txt) < $len);
+  $txt;
   }
 
 sub element_type
@@ -242,8 +375,12 @@ sub _track_size
   $SEEN{$adr}++;
 
   # not a reference, but a plain scalar?
-  return ($level, S_SCALAR, $total_size, 0, undef, $adr, $blessed)
-    unless ref($ref);
+  if (!ref($ref))
+    {
+    my $type = S_SCALAR;
+    $type = S_VSTRING if isvstring($_[0]);
+    return ($level, _flags($_[0]) + $type, $total_size, 0, undef, $adr, $blessed);
+    }
 
   my @res = ();
   if ($type eq 'ARRAY')
@@ -269,7 +406,7 @@ sub _track_size
       if (ref($ref->{$elem}))
         {
         my @rs = _track_size($ref->{$elem},$level+1);
-        $rs[1] += S_KEY;
+        $rs[1] += SF_KEY;
         $rs[4] = $elem;
         $rs[5] = $adr;
         $rs[6] = blessed($ref->{$elem}) || '';
@@ -279,7 +416,7 @@ sub _track_size
       else
         {
         my $size = total_size($ref->{$elem});
-        push @r, $level+1, S_KEY + S_SCALAR, $size, 0, $elem, $adr, '';
+        push @r, $level+1, SF_KEY + S_SCALAR, $size, 0, $elem, $adr, '';
         $sum += $size;
         }
       }
@@ -296,8 +433,10 @@ sub _track_size
     my $blessed = blessed (${$_[0]} ) || '';
     $type ='REGEXP' if $blessed eq 'Regexp';
     $type ='SCALAR' if !ref(${$_[0]});
+    my $flags = SF_REF;
+    $flags += SF_WEAK if isweak($_[0]);
     my @r = 
-     ($level, S_REF + type($type), $total_size, 0, undef, $adr, $blessed);
+     ($level, $flags + type($type), $total_size, 0, undef, $adr, $blessed);
     push @r, _track_size($$ref,$level+1);
     $r[2] += $SIZE_OF_REF;			# account for wrong \"" sizes
     $r[3] = $r[2] - total_size($$ref);
@@ -306,9 +445,8 @@ sub _track_size
   # SCALAR reference must come after Regexp, because these are also SCALAR !?
   elsif ($type eq 'SCALAR')
     {
-    # XXX TODO total_size($$ref) == total_size($ref) - shouldn't they be
-    # different?
-    return ($level, S_REF, $total_size, 0, undef, $adr, $blessed);
+    # return ($level, SF_REF + _flags($_[0]), $total_size, 0, undef, $adr, $blessed);
+    return ($level, SF_REF, $total_size, 0, undef, $adr, $blessed);
     }
   else
     {
@@ -317,6 +455,20 @@ sub _track_size
     return ($level, type($type), $total_size, $overhead, undef, $adr, $blessed);
     }
   @res;
+  }
+
+sub _flags
+  {
+  my $flags = 0;
+
+  $flags += SF_RO if readonly($_[0]);
+  $flags += SF_WEAK if isweak($_[0]);
+
+  # XXX TODO: how to find out if something is:
+  # an LVALUE
+  # a DUALVAR
+
+  $flags;
   }
 
 1;
@@ -364,6 +516,34 @@ This will print something like this:
         	Scalar 32 bytes
 	Total: 743 bytes
 
+=head1 EXPORTS
+
+Nothing per default, but can export the following per request:
+  
+	report_size
+	track_size
+	element_type
+	entries_per_element
+
+	S_SCALAR
+	S_HASH
+	S_ARRAY
+	S_GLOB
+	S_UNKNOWN
+	S_CODE
+	S_LVALUE
+	S_REGEXP
+  	S_CYCLE
+	S_DOUBLE
+
+	SF_KEY
+	SF_REF
+	SF_REF
+	SF_WEAK
+	SF_RO
+	SF_VSTRING
+	SF_DUAL
+
 =head1 DESCRIPTION
 
 Devel::Size can only report the size of a single element or the total size of
@@ -400,6 +580,10 @@ optional keys:
 		  " (overhead: %i%s, %0.2f%%)"
 	addr 	  if true, for each element the memory address will be output
 	class	  if true, show the class each element was blessed in
+	terse	  if true, details for elements will be supressed, e.g. you
+		  will only get the header, total and summary (if requested)
+	summary   if true, print a table summing up the memory details on a
+		  per-class basis
 
 =head2 entries_per_element
 
@@ -419,11 +603,11 @@ The entries currently are:
 
 	level	  the indend level
 	type	  the type of the element, S_SCALAR, S_HASH, S_ARRAY etc
-		  if (type & S_KEY) != 0, the element is a member of a hash
+		  if (type & SF_KEY) != 0, the element is a member of a hash
 	size	  size in bytes of the element
 	overhead  if the element is an ARRAY or HASH, contains the overhead
 		  in bytes (size - sum(size of all elements)).
-	name	  if type & S_KEY != 0, this contains the name of the hash key
+	name	  if type & SF_KEY != 0, this contains the name of the hash key
 	addr	  memory address of the element
 	class	  classname that the element was blessed into, or ''
 
@@ -466,7 +650,7 @@ different from a first report without a header.
 
 =head1 BUGS 
 
-Apart from the problems with Devel::Size, none known so far.
+Apart from some problems with Devel::Size, none known so far.
 
 =head1 AUTHOR
 
