@@ -9,5 +9,8 @@ Makefile.PL
 lib/Devel/Size/Report.pm
 example/size.pl
 example/psize
-t/report.t
+t/00_basic.t
+t/01_track.t
+t/02_report.t
+t/03_format.t
 META.yml                                 Module meta-data (added by MakeMaker)

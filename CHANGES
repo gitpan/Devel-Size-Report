@@ -14,3 +14,12 @@ Revision history for Devel::Size::Report
   * disable Devel::Size warnings (about incomplete CV etc, thanx nadim!)
   * drop the "Key " from the output, it is rendundand (thanx nadim!)
   * report_size: bytes => '' in $options works correctly now (thanx nadim!)
+2004-01-10 v0.04 Tels 55 tests
+  * fixed the bug that sometimes looking at a scalar again after looking at
+    a longer scalar reported the wrong (bigger) size. $pre = shift vs. $_[0]
+    usage in total_size() was the culprit (slot reusing).  Thanx Sadahiro!
+  * Size report outputs version of Devel::Size::Report, too
+  * refactored tests into three files, added some more tests
+  * use Scalar::Util to get reftype and refaddr
+  * added option 'addr' to report_size() to print elem address
+  * example/psize takes options as second string argument

@@ -1,3 +1,5 @@
 
-* find and fix the Perl/Devel::Size/testsuite bugs (see TODO tests)
-
+* let the user make more formatting choices
+* document how to wrap your own report_size function
+* add a report_size_in_html() function? or make generic "string-hooks" that
+  can be used to have a $preamble etc?

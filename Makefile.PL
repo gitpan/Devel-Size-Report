@@ -7,6 +7,7 @@ WriteMakefile(
     'PREREQ_PM'		=> {
 		Devel::Size => 0.58,
 		Test::Simple => 0.47,
+		Scalar::Util => 1.13,
 	}, # e.g., Module::Name => 1.1
     'LIBS'		=> [''], # e.g., '-lm'
     'DEFINE'		=> '', # e.g., '-DHAVE_SOMETHING'

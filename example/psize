@@ -8,9 +8,15 @@ use Devel::Size::Report qw/report_size/;
 
 my $token = shift || '"A scalar"';
 
+my $options = shift || {};
+eval (" \$options = { $options }") if !ref $options;
+
+$options->{head} =
+ "Size report v$Devel::Size::Report::VERSION for '$token' =>"; 
+
 my $eval = $token;
 
 # make "Foo->new(1)" => "use Foo; Foo->new(1)"
 $eval = "use $1; $token" if $token =~ /^\s*([\w:]+)->/;
 
-print report_size ( eval $eval, { head => "Size report for '$token' => " } );
+print report_size ( eval $eval, $options ); 
