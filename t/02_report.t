@@ -23,8 +23,8 @@ use Scalar::Util qw/weaken/;
 
 my $x = "A string";
 my $v = "V string";
-my $y = "A longer string";
-my $z = "Some other text";
+my $y = "A much much longer string";	# should be at least 8 longer than $x for 64 bit!
+my $z = "Some other long text here";	# length($z) == length($y)
 my $elems = [ $x,$y,$z ];
 my $nr = 123;
 my $ref = \"1234";

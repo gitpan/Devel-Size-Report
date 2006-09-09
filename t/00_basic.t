@@ -7,7 +7,7 @@ use Scalar::Util qw/weaken/;
 BEGIN
   {
   $| = 1; 
-  plan tests => 13;
+  plan tests => 14;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -33,6 +33,7 @@ can_ok('Devel::Size::Report', qw/
   SF_RO
   SF_WEAK
   SF_DUAL
+  SF_MAGIC
   /);
 
 # check that we can import these names
@@ -55,6 +56,7 @@ Devel::Size::Report->import(qw/
   SF_RO
   SF_WEAK
   SF_DUAL
+  SF_MAGIC
   /);
 
 #############################################################################
@@ -81,6 +83,14 @@ weaken ($x);
 is (Devel::Size::Report::_flags($x), SF_WEAK(), 'weakened ref');
 
 is (Devel::Size::Report::_flags("123"), SF_RO(), 'readonly scalar');
+
+TODO: {
+  local $TODO = 'Do not have a way to detect magic yet';
+
+  is (Devel::Size::Report::_flags(substr("123",0,1)), SF_MAGIC(), 
+    'magical scalar');
+
+ };
 
 #############################################################################
 # type() and element_type()

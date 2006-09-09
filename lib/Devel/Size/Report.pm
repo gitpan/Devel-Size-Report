@@ -1,6 +1,6 @@
 package Devel::Size::Report;
 
-$VERSION = '0.10';
+$VERSION = '0.11';
 
 use Devel::Size qw(size total_size);
 use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;
@@ -32,6 +32,7 @@ require Exporter;
   SF_WEAK
   SF_RO
   SF_DUAL
+  SF_MAGIC
 
   /;
 
@@ -75,25 +76,28 @@ my $UNDEF = undef;
 my $ZERO = 0;
 
 # the different types of elements
-sub S_UNKNOWN () { 0; }
-sub S_CYCLE () { 1; }
-sub S_SCALAR () { 2; }
-sub S_ARRAY () { 3; }
-sub S_HASH () { 4; }
-sub S_GLOB () { 5; }
-sub S_CODE () { 6; }
-sub S_REGEXP () { 7; }
-sub S_LVALUE () { 8; }
-sub S_DOUBLE () { 9; }
-sub S_VSTRING () { 10; }
+use constant {
+  S_UNKNOWN	=> 0,
+  S_CYCLE	=> 1,
+  S_SCALAR	=> 2,
+  S_ARRAY	=> 3,
+  S_HASH	=> 4,
+  S_GLOB	=> 5,
+  S_CODE	=> 6,
+  S_REGEXP	=> 7,
+  S_LVALUE	=> 8,
+  S_DOUBLE	=> 9,
+  S_VSTRING	=> 10 };
 
 # some flags (to be added to the types)
-sub SF_KEY     () { 0x0100; }
-sub SF_REF     () { 0x0200; }
-sub SF_BLESS   () { 0x0400; }
-sub SF_WEAK    () { 0x0800; }
-sub SF_RO      () { 0x1000; }
-sub SF_DUAL    () { 0x2000; }
+use constant {
+  SF_KEY 	=> 0x0100,
+  SF_REF	=> 0x0200,
+  SF_BLESS	=> 0x0400,
+  SF_WEAK	=> 0x0800,
+  SF_RO		=> 0x1000,
+  SF_DUAL	=> 0x2000,
+  SF_MAGIC	=> 0x4000 };
 
 sub entries_per_element () { 7; }
 
@@ -116,6 +120,7 @@ my $TYPE = {
   SF_WEAK() => 'Weak', 
   SF_RO() => 'Read-Only', 
   SF_DUAL() => 'Dual-Var', 
+  SF_MAGIC() => 'Magical', 
   SF_KEY() => '', 
   };
 
@@ -152,6 +157,7 @@ my $NAME_MAP = {
   WEAK => SF_WEAK(),
   DUAL => SF_DUAL(),
   RO => SF_RO(),
+  MAGIC => SF_MAGIC(), 
   };
 
 sub _default_options
@@ -403,10 +409,10 @@ sub _type
   {
   # find the type of an element and return as string
   my $type = uc(reftype($_[0]) || '');
-  my $class = blessed($_[0]);
+  my $class = blessed($_[0]); $class = '' unless defined $class;
 
   # blessed "Regexp" and ref to scalar?
-  $type ='REGEXP' if $class && $class eq 'Regexp';
+  $type ='REGEXP' if $class eq 'Regexp';
 
   # refs to scalars are tricky
   $type ='REF' 

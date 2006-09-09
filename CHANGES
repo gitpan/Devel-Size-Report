@@ -1,5 +1,14 @@
 Revision history for Devel::Size::Report
 
+2006-09-09 v0.11 Tels 146 tests
+  * clean up Makefile.PL
+  * add a SF_MAGIC() flag (not yet used)
+  * fix failing tests under 64 bit (need to add more than 7 bytes)
+  * fix undef warning from blessed()
+  * "use constant" instead of "sub () ..."
+
+Older revision history:
+
 2004-01-06 v0.01 Tels 42 tests (not released)
   * first release with:
      report_size(), track_size(), element_type(), entries_per_element() 

@@ -47,6 +47,8 @@
       CUR = 8
       LEN = 9
 
-   Surely our report could be better (detect magic?).
+   Surely our report could be better, and at least say "Magical Scalar".
 
+   (There is now SF_MAGIC(), but there doesn't seem to be any way from Perl
+    or Devel::Peek to ask for the equivalent of is_magic($scalar)...)
 

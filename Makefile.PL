@@ -1,6 +1,6 @@
 use ExtUtils::MakeMaker;
 
-use ExtUtils::MakeMaker;
+use strict;
 
 sub MY::metafile {
   package MY;
@@ -11,7 +11,8 @@ sub MY::metafile {
     return $self->SUPER::metafile_target(@_);
   };
 
-  my $node = new YAML::Node {};
+  require YAML::Node;
+  my $node = YAML::Node->new( {} );
 
   $node->{name}                 = $self->{DISTNAME};
   $node->{version}              = $self->{VERSION};
@@ -34,14 +35,12 @@ WriteMakefile(
     'NAME'		=> 'Devel::Size::Report',
     'VERSION_FROM'	=> 'lib/Devel/Size/Report.pm', # finds $VERSION
     'PREREQ_PM'		=> {
-		Devel::Size => 0.59,
-		Test::Simple => 0.47,
-		Scalar::Util => 1.13,
-		Time::HiRes => 1.52,
-		Array::RefElem => 1.00,
-		Devel::Peek => 1.00,
-	}, # e.g., Module::Name => 1.1
-    'LIBS'		=> [''], # e.g., '-lm'
-    'DEFINE'		=> '', # e.g., '-DHAVE_SOMETHING'
-    'INC'		=> '', # e.g., '-I/usr/include/other'
+		'Devel::Size'	=> 0.59,
+		'Test::Simple'	=> 0.47,
+		'Scalar::Util'	=> 1.13,
+		'Time::HiRes'	=> 1.52,
+		'Array::RefElem'=> 1.00,
+		'Devel::Peek'	=> 1.00,
+	},
+    'PREREQ_FATAL'	=> 1,		# can't work w/o them anyway
 );
