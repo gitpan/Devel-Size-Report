@@ -1,6 +1,8 @@
 package Devel::Size::Report;
 
-$VERSION = '0.11';
+use 5.005_05;
+
+$VERSION = '0.12';
 
 use Devel::Size qw(size total_size);
 use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;
@@ -750,11 +752,17 @@ returns an array with the results.
 
 Releases the memory consumed by a call to L<track_size> or L<track_sizes>.
 
-=head2 type_name
+=head2 type
 
 	$type_number = type($type_name);
 
 Maps a type name (like 'SCALAR') to a type number (lilke S_SCALAR).
+
+=head2 element_type
+
+	$type_name = element_type($type_nr);
+
+Maps a type number (like S_SCALAR) to a type name (lilke 'SCALAR').
 
 =head1 WRAP YOUR OWN
 
@@ -798,6 +806,6 @@ not threadsafe.
 
 =head1 AUTHOR
 
-(c) 2004, 2005 by Tels http://bloodgate.com
+(c) 2004, 2005, 2006, 2008 by Tels http://bloodgate.com
 
 =cut

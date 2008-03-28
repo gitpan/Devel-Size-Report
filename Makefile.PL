@@ -1,46 +1,32 @@
-use ExtUtils::MakeMaker;
-
+# We don't support ancient Perls anymore
+require 5.005_05;
 use strict;
 
-sub MY::metafile {
-  package MY;
-  my $self = shift;
-  if (!eval { require YAML; 1 })
-  {
-    warn ("YAML not installed, 'make dist' will not override META.yml");
-    return $self->SUPER::metafile_target(@_);
-  };
+# Load the Module::Install bundled in ./inc/
+use inc::Module::Install;
 
-  require YAML::Node;
-  my $node = YAML::Node->new( {} );
+# The name of your distribution
+name            'Devel-Size-Report';
 
-  $node->{name}                 = $self->{DISTNAME};
-  $node->{version}              = $self->{VERSION};
-  $node->{version_from}         = $self->{VERSION_FROM};
-  $node->{license}              = 'perl';
-  $node->{distribution_type}    = 'module';
-  $node->{generated_by}         = "$self->{DISTNAME} version $self->{VERSION}";
-  $node->{installdirs}          = 'site';
-  $node->{requires}             = $self->{PREREQ_PM};
+# Get most of the details from the primary module
+all_from        'lib/Devel/Size/Report.pm';
 
-  my $dump = YAML::Dump( $node );
+requires	'Devel::Size'	=> 0.69;
+requires        'Scalar::Util'  => 1.13;
+requires	'Time::HiRes'	=> 1.86;
+requires	'Array::RefElem'=> 1.00;
+requires	'Devel::Peek'	=> 1.00;
+requires        'perl'          => 5.005_05;
 
-  $dump =~ s/^(.*)$/\t\$(NOECHO) \$(ECHO) "$1" >>META.yml/gm;
-  $dump =~ s/>>META\.yml/>META.yml/;
+build_requires  'Test::More'    => 0.62;
 
-  return "metafile:\n$dump";
-}
+license         'perl';		# from v5.8.8
 
-WriteMakefile(
-    'NAME'		=> 'Devel::Size::Report',
-    'VERSION_FROM'	=> 'lib/Devel/Size/Report.pm', # finds $VERSION
-    'PREREQ_PM'		=> {
-		'Devel::Size'	=> 0.59,
-		'Test::Simple'	=> 0.47,
-		'Scalar::Util'	=> 1.13,
-		'Time::HiRes'	=> 1.52,
-		'Array::RefElem'=> 1.00,
-		'Devel::Peek'	=> 1.00,
-	},
-    'PREREQ_FATAL'	=> 1,		# can't work w/o them anyway
-);
+author          'Tels <nospam-abuse@bloodgate.com>';
+
+# Do not index these
+no_index        directory       => 'example';
+
+# Generate the Makefile
+WriteAll;
+

@@ -1,16 +1,25 @@
+BUGS
 CHANGES
 CREDITS
-BUGS
+example/grind
+example/psize
+example/size.pl
+inc/Module/Install.pm
+inc/Module/Install/Base.pm
+inc/Module/Install/Can.pm
+inc/Module/Install/Fetch.pm
+inc/Module/Install/Makefile.pm
+inc/Module/Install/Metadata.pm
+inc/Module/Install/Win32.pm
+inc/Module/Install/WriteAll.pm
+lib/Devel/Size/Report.pm
 LICENSE
+Makefile.PL
 MANIFEST
+MANIFEST.SKIP
+META.yml			Module meta-data (added by MakeMaker)
 README
 SIGNATURE
-TODO
-Makefile.PL
-lib/Devel/Size/Report.pm
-example/size.pl
-example/psize
-example/grind
 t/00_basic.t
 t/01_track.t
 t/02_report.t
@@ -18,6 +27,8 @@ t/03_format.t
 t/04_cycle.t
 t/05_address.t
 t/06_error.t
-t/07_double.t		text shared/double scalars
-t/08_size.t		specific size tests
-META.yml		Module meta-data (added by MakeMaker)
+t/07_double.t			text shared/double scalars
+t/08_size.t			specific size tests
+t/09_pod.t
+t/10_pod_cov.t
+TODO

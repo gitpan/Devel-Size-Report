@@ -1,5 +1,11 @@
 Revision history for Devel::Size::Report
 
+2008-03-28 v0.12 Tels 148 tests
+  * fix failing tests (due to bugfix in Devel::Size, thanx Wolfgang Schemmel!)
+  * add POD tests and POD coverage tests
+  * fix POD errors revealed by coverage testing
+  * require at least Perl 5.005002
+
 2006-09-09 v0.11 Tels 146 tests
   * clean up Makefile.PL
   * add a SF_MAGIC() flag (not yet used)

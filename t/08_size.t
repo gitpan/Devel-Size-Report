@@ -35,7 +35,7 @@ print "# scalar size: $scalar_size\n";
 
 # find out how much an array grows
 @size = track_size( [ 1,2 ] );
-my $array_grow = $size[2] - $scalar_size * 2 - $array_size;
+my $array_grow = ($size[2] - $scalar_size * 2 - $array_size) / 2;
 print "# array grow: $array_grow\n";
 
 #############################################################################
@@ -45,22 +45,22 @@ print "# array grow: $array_grow\n";
 @size = track_size( [ [ ] ] );
 
 # if there is only one element in the array, it does not grow by "$array_grow"
-is ($size[2], 2 * $array_size, 'two empty arrays');
+is ($size[2], 2 * $array_size + $array_grow, 'two empty arrays');
 
 @size = track_size( [ 1, [ ] ] );
-is ($size[2], $array_grow * 1 + 2 * $array_size + 1 * $scalar_size, 'two empty arrays, one scalar');
+is ($size[2], $array_grow * 2 + 2 * $array_size + 1 * $scalar_size, 'two empty arrays, one scalar');
 
 @size = track_size( [ 1, 2, [ ] ] );
-is ($size[2], $array_grow * 2 + 2 * $array_size + 2 * $scalar_size, 'two empty arrays, two scalars');
+is ($size[2], $array_grow * 3 + 2 * $array_size + 2 * $scalar_size, 'two empty arrays, two scalars');
 
 @size = track_size( [ 1, 2, 3, [ ] ] );
-is ($size[2], $array_grow * 3 + 2 * $array_size + 3 * $scalar_size, 'two empty arrays, three scalars');
+is ($size[2], $array_grow * 4 + 2 * $array_size + 3 * $scalar_size, 'two empty arrays, three scalars');
 
 @size = track_size( [ 1, 2, 3, [ 1 ] ] );
-is ($size[2], $array_grow * 3 + 2 * $array_size + 4 * $scalar_size, 'two empty arrays, four scalars');
+is ($size[2], $array_grow * 5 + 2 * $array_size + 4 * $scalar_size, 'two empty arrays, four scalars');
 
 @size = track_size( [ 1, 2, 3, [ 1, 2] ] );
-is ($size[2], $array_grow * 4 + 2 * $array_size + 5 * $scalar_size, 'two empty arrays, five scalars');
+is ($size[2], $array_grow * 6 + 2 * $array_size + 5 * $scalar_size, 'two empty arrays, five scalars');
 
 #############################################################################
 #############################################################################
@@ -76,8 +76,8 @@ av_push @$array, $scalar;
 
 @size = track_size( $array );
 
-# 3 times array grow because the push extends the array by 3 slots, seemingly
-my $base_size = $array_size + 1 * $scalar_size + 3 * $array_grow;
+# 4 times array grow because the push extends the array by 4 slots, seemingly
+my $base_size = $array_size + 1 * $scalar_size + 4 * $array_grow;
 
 is ($size[2], $base_size, 'one array, plus one scalars (no double testing)');
 
