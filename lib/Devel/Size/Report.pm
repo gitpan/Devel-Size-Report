@@ -1,8 +1,8 @@
 package Devel::Size::Report;
 
-use 5.005_05;
+require 5.006;
 
-$VERSION = '0.12';
+$VERSION = '0.13';
 
 use Devel::Size qw(size total_size);
 use Scalar::Util qw/reftype refaddr blessed dualvar isweak readonly isvstring/;

@@ -79,6 +79,7 @@ is (Devel::Size::Report::_flags($x), SF_WEAK(), 'weakened ref');
 $x = \"123";
 
 is (Devel::Size::Report::_flags($x), 0, 'ref to 123');
+# this sometimes failes with "Modification of a read-only value attempted"
 weaken ($x);
 is (Devel::Size::Report::_flags($x), SF_WEAK(), 'weakened ref');
 

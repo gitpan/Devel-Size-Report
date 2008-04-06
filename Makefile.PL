@@ -1,5 +1,5 @@
 # We don't support ancient Perls anymore
-require 5.005_05;
+require 5.006;
 use strict;
 
 # Load the Module::Install bundled in ./inc/
@@ -16,7 +16,7 @@ requires        'Scalar::Util'  => 1.13;
 requires	'Time::HiRes'	=> 1.86;
 requires	'Array::RefElem'=> 1.00;
 requires	'Devel::Peek'	=> 1.00;
-requires        'perl'          => 5.005_05;
+requires        'perl'          => 5.006;
 
 build_requires  'Test::More'    => 0.62;
 

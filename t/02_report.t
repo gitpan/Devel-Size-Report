@@ -6,7 +6,7 @@ use strict;
 BEGIN
   {
   $| = 1; 
-  plan tests => 44;
+  plan tests => 43;
   chdir 't' if -d 't';
   unshift @INC, '../blib/lib';
   unshift @INC, '../blib/arch';
@@ -116,9 +116,16 @@ unlike ($A, qr/Read-Only VString /, 'no RO VString');
 
 $A = report_size( $ref_vstring, { head => '' } );
 
-like ($A, qr/VString /, 'VString');
-like ($A, qr/Scalar Ref /, 'Ref');
-like ($A, qr/Read-Only VString /, 'RO VString');
+if ($] < 5.010)
+  {
+  like ($A, qr/Scalar Ref /, 'Scalar Ref');
+  like ($A, qr/Read-Only VString /, 'Read-Only VString');
+  }
+else
+  {
+  like ($A, qr/VString /, 'VString');
+  like ($A, qr/in 1 elements/, '1 elements');
+  }
 
 #############################################################################
 # HASH 
